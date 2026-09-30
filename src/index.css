@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+.font-editorial {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+.bg-science-gradient {
+  background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 35%, #e6fcf5 70%, #d1fae5 100%);
+}
+
+.bg-science-subtle {
+  background: linear-gradient(145deg, #f0f7fb 0%, #f4faf8 100%);
+}
