@@ -1,6 +1,7 @@
 import { GiftGuideMoreGiftsOptions, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
 import { WritingStylesConfig } from '../styles';
+import { formatInternalLinksSection } from '../../../utils/internalLinks';
 
 function formatToneDescription(tone: GiftGuideTone): string {
   switch (tone) {
@@ -52,6 +53,8 @@ export function generateGiftGuideMoreGiftsPrompt(
     ? `• Target Keyword: "${options.primaryKeyword.trim()}" (Include organically in the section framing if natural)`
     : '';
 
+  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
+
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL CURATOR INSTRUCTIONS:\n${options.additionalInstructions.trim()}\n`
     : '';
@@ -90,7 +93,7 @@ SECTION GOALS:
 2. Helpful, Non-Repetitive Product Mentions:
    - Highlight the featured items in an organic, narrative-driven manner rather than reading like a dry inventory database.
    - Group or contrast items by personality nuance, occasion, or style so the reader instantly understands which one fits their recipient best.
-${additionalSection}
+${internalLinksSection}${additionalSection}
 ${styleSection}
 OUTPUT FORMAT:
 Provide:

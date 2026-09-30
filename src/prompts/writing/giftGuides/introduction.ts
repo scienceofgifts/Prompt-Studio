@@ -1,6 +1,7 @@
 import { GiftGuideIntroOptions, GiftGuideAngle, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
 import { WritingStylesConfig } from '../styles';
+import { formatInternalLinksSection } from '../../../utils/internalLinks';
 
 function formatToneDescription(tone: GiftGuideTone): string {
   switch (tone) {
@@ -54,6 +55,7 @@ export function generateGiftGuideIntroPrompt(
     : '• Primary Keyword: None specified (prioritize natural readability)';
   const angleDesc = formatAngleDescription(options.desiredAngle);
   const toneDesc = formatToneDescription(options.tone);
+  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL CURATOR INSTRUCTIONS:\n${options.additionalInstructions.trim()}\n`
     : '';
@@ -90,7 +92,7 @@ OBJECTIVES FOR THIS INTRODUCTION:
 3. Build Anticipation & Credibility:
    - Set up the collection ahead with taste, warmth, and discernment.
    - Smoothly transition the reader into the first curated item without awkward segue formulas like "Without further ado, let's dive into the list".
-${additionalSection}
+${internalLinksSection}${additionalSection}
 ${styleSection}
 OUTPUT FORMAT:
 Provide 2 distinct introduction variations:

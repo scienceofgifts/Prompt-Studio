@@ -1,3 +1,6 @@
+import { InternalLink } from '../../utils/internalLinks';
+export type { InternalLink };
+
 export type StudioCategory = 'image' | 'writing';
 
 export type StudioToolId =
@@ -9,7 +12,7 @@ export type StudioToolId =
 export * from './giftGuides/types';
 
 // ==========================================
-// 1. Article Types
+// 1. Article Types & Workflow
 // ==========================================
 export type ArticleType =
   | 'informational'
@@ -33,7 +36,15 @@ export type ArticleSearchIntent =
   | 'how-to-guide'
   | 'inspiration-ideas';
 
+export type ArticleWorkflowTab =
+  | 'research-angles'
+  | 'research-outline'
+  | 'writing-article'
+  | 'editing-humanize'
+  | 'editing-tighten';
+
 export interface ArticleOptions {
+  activeWorkflowTab?: ArticleWorkflowTab;
   topic: string;
   intendedReader: string;
   primaryKeyword: string;
@@ -41,6 +52,15 @@ export interface ArticleOptions {
   searchIntent: ArticleSearchIntent;
   tone: ArticleTone;
   articleType: ArticleType;
+  // Research Section Inputs
+  researchAngleInput?: string;
+  // Writing Section Optional Inputs
+  articleAngle?: string;
+  articleOutline?: string;
+  // Editing Section Inputs
+  draftToEdit?: string;
+  // Optional Internal Links
+  internalLinks?: InternalLink[];
   additionalInstructions?: string;
 }
 
@@ -61,5 +81,6 @@ export interface ProductCopyOptions {
   productConcept: string;
   keyFeatures: string;
   tone: ProductCopyTone;
+  internalLinks?: InternalLink[];
   additionalInstructions?: string;
 }

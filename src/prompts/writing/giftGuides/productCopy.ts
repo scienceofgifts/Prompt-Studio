@@ -1,6 +1,7 @@
 import { GiftGuideProductCopyOptions, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
 import { WritingStylesConfig } from '../styles';
+import { formatInternalLinksSection } from '../../../utils/internalLinks';
 
 function formatToneDescription(tone: GiftGuideTone): string {
   switch (tone) {
@@ -58,6 +59,8 @@ export function generateGiftGuideProductCopyPrompt(
     ? `• Product Reference Link (Provided for context/reference by the human curator): ${options.productUrl.trim()}\n  [Note for model: Do not attempt to access external web servers. Use the link purely as topical title/vendor context.]\n`
     : '';
 
+  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
+
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL CURATOR INSTRUCTIONS:\n${options.additionalInstructions.trim()}\n`
     : '';
@@ -98,7 +101,7 @@ WRITING OBJECTIVES FOR THIS ENTRY:
 2. Explicitly Connect the Item to the Recipient & Guide Topic:
    - Don't just praise the item in a vacuum; explain why it makes exceptional sense for ${recipient} in the context of "${guideTitle}".
    - Describe the exact moment of gifting: the curiosity it sparks, the daily ritual it enhances, or the problem it gracefully solves.
-${additionalSection}
+${internalLinksSection}${additionalSection}
 ${styleSection}
 OUTPUT FORMAT:
 Provide:

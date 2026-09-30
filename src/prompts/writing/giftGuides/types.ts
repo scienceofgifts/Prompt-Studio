@@ -23,10 +23,13 @@ export type GiftGuideAngle =
 
 export type SectionLength = 'concise' | 'standard' | 'detailed';
 
+import { InternalLink } from '../../../utils/internalLinks';
+
 export interface GiftGuideBaseOptions {
   guideTitle: string;
   recipient: string;
   primaryKeyword?: string;
+  internalLinks?: InternalLink[];
   additionalInstructions?: string;
 }
 
@@ -75,6 +78,7 @@ export interface GiftGuideCompositeState {
   guideTitle: string;
   recipient: string;
   primaryKeyword: string;
+  internalLinks?: InternalLink[];
   additionalInstructions: string;
 
   // Introduction specific

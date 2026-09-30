@@ -18,6 +18,7 @@ import {
   buildProductPhotoPrompt,
   generateGiftGuideSectionPrompt,
   generateArticlePrompt,
+  generateArticleWorkflowPrompt,
   generateProductCopyPrompt,
 } from './types';
 import { Sparkles, Shield, CheckCircle2 } from 'lucide-react';
@@ -128,7 +129,7 @@ export default function App() {
   // ==========================================
   const [articleOptions, setArticleOptions] = useState<ArticleOptions>(DEFAULT_ARTICLE_OPTIONS);
   const [articlePrompt, setArticlePrompt] = useState<string>(() =>
-    generateArticlePrompt(DEFAULT_ARTICLE_OPTIONS)
+    generateArticleWorkflowPrompt(DEFAULT_ARTICLE_OPTIONS)
   );
 
   // ==========================================
@@ -153,7 +154,7 @@ export default function App() {
   const handleStylesUpdated = () => {
     // Regenerate active writing prompts using updated style rules
     setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
-    setArticlePrompt(generateArticlePrompt(articleOptions));
+    setArticlePrompt(generateArticleWorkflowPrompt(articleOptions));
     setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
   };
 
@@ -233,8 +234,15 @@ export default function App() {
     setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
   };
 
+  const handleArticleOptionsChange = (newOptions: ArticleOptions) => {
+    setArticleOptions(newOptions);
+    if (newOptions.activeWorkflowTab !== articleOptions.activeWorkflowTab) {
+      setArticlePrompt(generateArticleWorkflowPrompt(newOptions));
+    }
+  };
+
   const handleGenerateArticlePrompt = () => {
-    setArticlePrompt(generateArticlePrompt(articleOptions));
+    setArticlePrompt(generateArticleWorkflowPrompt(articleOptions));
   };
 
   const handleGenerateProductCopyPrompt = () => {
@@ -297,15 +305,31 @@ export default function App() {
     onCurrentPromptChange = setArticlePrompt;
     onCurrentClear = () => setArticlePrompt('');
     onCurrentRegenerate = handleGenerateArticlePrompt;
-    currentToolTitle = 'Editorial Article Prompt';
+
+    const articleTabTitles: Record<string, string> = {
+      'research-angles': 'Research: Editorial Angles Prompt',
+      'research-outline': 'Research: Narrative Outline Prompt',
+      'writing-article': 'Editorial Article Prompt',
+      'editing-humanize': 'Editing: Base Prompt (Humanize)',
+      'editing-tighten': 'Editing: Tighten & Refine Prompt',
+    };
+
+    const currentTab = articleOptions.activeWorkflowTab || 'writing-article';
+    currentToolTitle = articleTabTitles[currentTab] || 'Editorial Article Prompt';
     currentToolSubtitle = 'Ready to paste into Claude / ChatGPT / Gemini';
+
     currentActiveChips = [
-      { label: 'Type', value: articleOptions.articleType },
-      { label: 'Intent', value: articleOptions.searchIntent.replace(/-/g, ' ') },
-      { label: 'Tone', value: articleOptions.tone.replace(/-/g, ' ') },
-      { label: 'Style Rules', value: 'Global + Editorial' },
-      { label: 'Keyword', value: articleOptions.primaryKeyword || 'Topical Authority' },
+      { label: 'Step', value: currentTab.replace(/-/g, ' ') },
+      { label: 'Topic', value: articleOptions.topic || 'Article Topic' },
     ];
+
+    if (currentTab === 'writing-article') {
+      currentActiveChips.push(
+        { label: 'Type', value: articleOptions.articleType },
+        { label: 'Tone', value: articleOptions.tone.replace(/-/g, ' ') },
+        { label: 'Style Rules', value: 'Global + Editorial' }
+      );
+    }
   } else if (activeTool === 'product-copy') {
     currentPrompt = productCopyPrompt;
     onCurrentPromptChange = setProductCopyPrompt;
@@ -419,7 +443,7 @@ export default function App() {
             {activeTool === 'article' && (
               <ArticleControls
                 options={articleOptions}
-                onChange={setArticleOptions}
+                onChange={handleArticleOptionsChange}
                 onGenerate={handleGenerateArticlePrompt}
                 onOpenStyleLibrary={() => handleOpenStyleLibrary('editorial')}
               />

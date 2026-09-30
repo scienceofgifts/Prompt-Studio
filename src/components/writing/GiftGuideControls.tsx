@@ -23,6 +23,7 @@ import {
   GiftGuideAngle,
 } from '../../prompts/writing/giftGuides/types';
 import { WritingStyleKey } from '../../prompts/writing/styles';
+import { InternalLinksManager } from './InternalLinksManager';
 
 interface GiftGuideControlsProps {
   state: GiftGuideCompositeState;
@@ -669,7 +670,14 @@ export const GiftGuideControls: React.FC<GiftGuideControlsProps> = ({
         )}
       </div>
 
-      {/* 4. ADDITIONAL CONTEXT / INSTRUCTIONS (COMMON) */}
+      {/* 4. OPTIONAL INTERNAL LINKS */}
+      <InternalLinksManager
+        links={state.internalLinks || []}
+        onChange={(links) => updateField('internalLinks', links)}
+        accentColor="teal"
+      />
+
+      {/* 5. ADDITIONAL CONTEXT / INSTRUCTIONS (COMMON) */}
       <div className="pt-4 border-t border-[#f1f5f9]">
         <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
           <FileText className="w-3.5 h-3.5 text-[#0f766e]" />

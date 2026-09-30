@@ -4,6 +4,7 @@ import {
 } from './types';
 import { composeWritingStyleBlocks } from '../../utils/styleManager';
 import { WritingStylesConfig } from './styles';
+import { formatInternalLinksSection } from '../../utils/internalLinks';
 
 function formatProductCopyTone(tone: ProductCopyTone): string {
   switch (tone) {
@@ -36,6 +37,8 @@ export function generateProductCopyPrompt(
   const concept = options.productConcept.trim() || 'Inspired by Galileo Galilei’s 1610 astronomical sketches of the lunar surface and Jupiter’s moons';
   const features = options.keyFeatures.trim() || '160 pages of 120 GSM fountain pen-friendly paper, debossed gold foil constellation map, silk ribbon bookmark, lay-flat thread binding, elastic closure';
   const toneDesc = formatProductCopyTone(options.tone);
+
+  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
 
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL PRODUCT BRIEFING:\n${options.additionalInstructions.trim()}\n`
@@ -80,7 +83,7 @@ REQUIRED COPY DELIVERABLES:
 
 5. The Gifting Note (60–90 words):
    - Describe why this item makes an unforgettable gift and who would cherish receiving it. Include a suggested handwritten gift-card sentiment.
-${additionalSection}
+${internalLinksSection}${additionalSection}
 ${styleSection}
 OUTPUT FORMAT:
 Provide the complete product page copy in clean Markdown with distinct section headers, bullet lists, and polished formatting ready to paste into Shopify or a luxury catalog.`;

@@ -13,6 +13,7 @@ import {
   ProductCopyTone,
 } from '../../prompts/writing/types';
 import { WritingStyleKey } from '../../prompts/writing/styles';
+import { InternalLinksManager } from './InternalLinksManager';
 
 interface ProductCopyControlsProps {
   options: ProductCopyOptions;
@@ -191,7 +192,14 @@ export const ProductCopyControls: React.FC<ProductCopyControlsProps> = ({
         </div>
       </div>
 
-      {/* 6. Additional Instructions */}
+      {/* 6. OPTIONAL INTERNAL LINKS */}
+      <InternalLinksManager
+        links={options.internalLinks || []}
+        onChange={(links) => updateOption('internalLinks', links)}
+        accentColor="indigo"
+      />
+
+      {/* 7. Additional Instructions */}
       <div className="pt-4 border-t border-[#f1f5f9]">
         <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
           <FileText className="w-3.5 h-3.5 text-[#a21caf]" />
