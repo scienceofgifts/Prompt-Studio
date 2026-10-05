@@ -5,7 +5,25 @@ import {
   SurfaceStyle,
   PropsStyle,
   AspectRatio,
-  PromptTemplateContext,
+  PromptOptions,
+  PhotographyTheme,
+  ProductPosition,
+  ProductPresentation,
+  ShotType,
+  CameraAngle,
+  CameraPerspective,
+  FocalLengthCharacter,
+  DepthOfField,
+  CompositionStyle,
+  NegativeSpaceDirection,
+  LightingStyle,
+  ShadowCharacter,
+  PropLevel,
+  PropFamily,
+  PropPlacement,
+  ColorPalette,
+  VariationLevel,
+  VariationToggles,
 } from './prompts/types';
 
 export * from './prompts/types';
@@ -21,6 +39,34 @@ export interface GenerationSettings {
   props: PropsStyle;
   aspectRatio: AspectRatio;
   additionalInstructions: string;
+
+  // New Creative Direction Controls
+  theme?: PhotographyTheme;
+  productPosition?: ProductPosition;
+  productPresentation?: ProductPresentation;
+
+  shotType?: ShotType;
+  cameraAngle?: CameraAngle;
+  perspective?: CameraPerspective;
+  focalLength?: FocalLengthCharacter;
+  depthOfField?: DepthOfField;
+
+  compositionStyle?: CompositionStyle;
+  negativeSpace?: NegativeSpaceDirection;
+
+  lightingStyle?: LightingStyle;
+  shadowCharacter?: ShadowCharacter;
+
+  propLevel?: PropLevel;
+  propFamily?: PropFamily;
+  propPlacement?: PropPlacement;
+
+  colorPalette?: ColorPalette;
+
+  variationLevel?: VariationLevel;
+  variationToggles?: VariationToggles;
+
+  websiteCropSafe?: boolean;
 }
 
 export interface SampleProduct {

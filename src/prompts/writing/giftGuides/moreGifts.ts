@@ -1,7 +1,7 @@
 import { GiftGuideMoreGiftsOptions, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
+import { getTemplateSection } from '../../../utils/templateManager';
 import { WritingStylesConfig } from '../styles';
-import { formatInternalLinksSection } from '../../../utils/internalLinks';
 
 function formatToneDescription(tone: GiftGuideTone): string {
   switch (tone) {
@@ -36,7 +36,7 @@ function formatLengthDirective(length: 'short' | 'standard' | 'expanded'): strin
 /**
  * Builds a prompt specifically for generating a "More Gifts" / category spotlight section.
  * Does NOT generate the entire gift guide.
- * Automatically incorporates Global + Editorial + Copy writing styles.
+ * Automatically incorporates Global + Editorial + Copy writing styles and customizable template rules.
  */
 export function generateGiftGuideMoreGiftsPrompt(
   options: GiftGuideMoreGiftsOptions,
@@ -53,8 +53,6 @@ export function generateGiftGuideMoreGiftsPrompt(
     ? `• Target Keyword: "${options.primaryKeyword.trim()}" (Include organically in the section framing if natural)`
     : '';
 
-  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
-
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL CURATOR INSTRUCTIONS:\n${options.additionalInstructions.trim()}\n`
     : '';
@@ -64,13 +62,12 @@ export function generateGiftGuideMoreGiftsPrompt(
     styles
   );
 
+  const moreGiftsTemplate = getTemplateSection('giftGuides', 'moreGifts');
+  const generalRules = getTemplateSection('giftGuides', 'generalWritingRules');
+
   return `Gift Guide "More Gifts" Sub-Category Section Prompt — Science of Gifts
 
-ROLE & TASK:
-Act as an editorial curator for "Science of Gifts" writing a dedicated "MORE GIFTS" sub-category section (e.g. "${sectionName}") to be placed within the larger guide.
-
-SCOPE CONSTRAINT:
-Generate ONLY this specific sub-category section. Do NOT generate the entire gift guide, introduction, or unrelated sections.
+${moreGiftsTemplate}
 
 PARENT GIFT GUIDE CONTEXT:
 • Overall Guide Title / Topic: "${guideTitle}"
@@ -84,20 +81,7 @@ SECTION PARAMETERS:
 ${productsIncluded.split('\n').map(p => `  - ${p}`).join('\n')}
 • Desired Length: ${lengthDesc}
 • Tone of Voice: ${toneDesc}
-
-SECTION GOALS:
-1. Provide a Short, Engaging Section Introduction:
-   - Establish why this particular sub-theme or category is worth exploring for ${recipient}.
-   - Explain what sets these items apart from the main list (e.g. hyper-specific interests, playful apparel, or daily desk staples).
-
-2. Helpful, Non-Repetitive Product Mentions:
-   - Highlight the featured items in an organic, narrative-driven manner rather than reading like a dry inventory database.
-   - Group or contrast items by personality nuance, occasion, or style so the reader instantly understands which one fits their recipient best.
-${internalLinksSection}${additionalSection}
-${styleSection}
-OUTPUT FORMAT:
-Provide:
-1. Editorial H2 Section Header
-2. Engaging Sub-Category Introduction Paragraph
-3. Curated Descriptions for the items with highlighted product names and concise, persuasive reasons to give each.`;
+${additionalSection}
+${generalRules ? `\n${generalRules}\n` : ''}
+${styleSection}`;
 }

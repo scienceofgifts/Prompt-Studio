@@ -1,18 +1,17 @@
-import { InternalLink } from '../../utils/internalLinks';
-export type { InternalLink };
-
-export type StudioCategory = 'image' | 'writing';
+export type StudioCategory = 'image' | 'writing' | 'settings';
 
 export type StudioToolId =
   | 'product-photography'
   | 'gift-guide'
   | 'article'
-  | 'product-copy';
+  | 'product-copy'
+  | 'product-data'
+  | 'settings';
 
 export * from './giftGuides/types';
 
 // ==========================================
-// 1. Article Types & Workflow
+// 1. Article Types
 // ==========================================
 export type ArticleType =
   | 'informational'
@@ -36,15 +35,7 @@ export type ArticleSearchIntent =
   | 'how-to-guide'
   | 'inspiration-ideas';
 
-export type ArticleWorkflowTab =
-  | 'research-angles'
-  | 'research-outline'
-  | 'writing-article'
-  | 'editing-humanize'
-  | 'editing-tighten';
-
 export interface ArticleOptions {
-  activeWorkflowTab?: ArticleWorkflowTab;
   topic: string;
   intendedReader: string;
   primaryKeyword: string;
@@ -52,15 +43,6 @@ export interface ArticleOptions {
   searchIntent: ArticleSearchIntent;
   tone: ArticleTone;
   articleType: ArticleType;
-  // Research Section Inputs
-  researchAngleInput?: string;
-  // Writing Section Optional Inputs
-  articleAngle?: string;
-  articleOutline?: string;
-  // Editing Section Inputs
-  draftToEdit?: string;
-  // Optional Internal Links
-  internalLinks?: InternalLink[];
   additionalInstructions?: string;
 }
 
@@ -81,6 +63,45 @@ export interface ProductCopyOptions {
   productConcept: string;
   keyFeatures: string;
   tone: ProductCopyTone;
-  internalLinks?: InternalLink[];
   additionalInstructions?: string;
+}
+
+// ==========================================
+// 3. Product Data Types (Catalog Metadata Record)
+// ==========================================
+export type ProductDataPriceMode = 'extract' | 'provided';
+
+export type ProductDataAffiliateType =
+  | 'affiliate'
+  | 'direct'
+  | 'sponsored'
+  | 'not-sponsored';
+
+export type ProductDataEditorialPositioning =
+  | 'none'
+  | 'broad-appeal'
+  | 'enthusiast-niche'
+  | 'practical-gift'
+  | 'conversation-piece'
+  | 'collector-enthusiast'
+  | 'novelty-gift';
+
+export type ProductDataEditorialTone =
+  | 'standard'
+  | 'practical'
+  | 'playful'
+  | 'sophisticated';
+
+export interface ProductDataOptions {
+  productUrl: string;
+  productType: string;
+  category: string;
+  affiliateType: ProductDataAffiliateType;
+  priceMode: ProductDataPriceMode;
+  providedPrice?: string;
+  editorialPositioning?: ProductDataEditorialPositioning;
+  editorialTone: ProductDataEditorialTone;
+  additionalInstructions?: string;
+  hasImage?: boolean;
+  imageName?: string;
 }

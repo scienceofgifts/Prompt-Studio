@@ -1,5 +1,6 @@
 import { GiftGuideFaqOptions, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
+import { getTemplateSection } from '../../../utils/templateManager';
 import { WritingStylesConfig } from '../styles';
 
 function formatToneDescription(tone: GiftGuideTone): string {
@@ -22,7 +23,7 @@ function formatToneDescription(tone: GiftGuideTone): string {
 /**
  * Builds a prompt specifically for generating the FAQ section of a gift guide.
  * Does NOT generate the entire gift guide.
- * Automatically incorporates Global + Editorial writing styles.
+ * Automatically incorporates Global + Editorial writing styles and customizable template rules.
  */
 export function generateGiftGuideFaqPrompt(
   options: GiftGuideFaqOptions,
@@ -52,13 +53,12 @@ ${questionsToAnswer.split('\n').map(q => `  - ${q}`).join('\n')}\n`
     styles
   );
 
+  const faqTemplate = getTemplateSection('giftGuides', 'faq');
+  const generalRules = getTemplateSection('giftGuides', 'generalWritingRules');
+
   return `Gift Guide FAQ Section Prompt — Science of Gifts
 
-ROLE & TASK:
-Act as an e-commerce editor and customer care curator for "Science of Gifts" writing the FREQUENTLY ASKED QUESTIONS (FAQ) section for a specific gift guide.
-
-SCOPE CONSTRAINT:
-Generate ONLY the FAQ section (${count} Q&As). Do NOT write the entire gift guide, introduction, or product catalog.
+${faqTemplate}
 
 PARENT GIFT GUIDE CONTEXT:
 • Overall Guide Title / Topic: "${guideTitle}"
@@ -68,21 +68,7 @@ ${keywordSection}
 FAQ PARAMETERS:
 • Number of Questions to Answer: Exactly ${count} questions
 ${customQuestionsSection}• Voice & Tone: ${toneDesc}
-
-FAQ QUALITY DIRECTIVES:
-1. Genuinely Useful & Topic-Specific Questions:
-   - Every question must address a real decision friction, etiquette dilemma, or logistical concern relevant to "${guideTitle}" and ${recipient}.
-   - Absolutely FORBIDDEN: fake, robotic questions invented solely to stuff keywords (e.g. "What are the best gifts for stargazers in 2026?").
-   - Instead, ask real questions (e.g. "What if they already own a basic telescope?", "How do I choose between decorative star charts and functional charts?", "What's an appropriate budget for a colleague vs. close friend?").
-
-2. Direct, Clear, and Actionable Answers:
-   - Answer each question in 2–4 concise, authoritative sentences.
-   - Provide concrete criteria rather than vague generalizations ("It depends").
-   - Reference thoughtful gifting practices, material care, or presentation advice where relevant.
 ${additionalSection}
-${styleSection}
-OUTPUT FORMAT:
-Provide:
-1. Section H2 Heading (e.g. "Frequently Asked Questions About Gifting for [Recipient]")
-2. Clean Q&A Pairs formatted in Markdown with bold question titles and concise paragraph answers.`;
+${generalRules ? `\n${generalRules}\n` : ''}
+${styleSection}`;
 }

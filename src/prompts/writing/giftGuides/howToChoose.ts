@@ -1,5 +1,6 @@
 import { GiftGuideHowToChooseOptions, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
+import { getTemplateSection } from '../../../utils/templateManager';
 import { WritingStylesConfig } from '../styles';
 
 function formatToneDescription(tone: GiftGuideTone): string {
@@ -35,7 +36,7 @@ function formatLengthDirective(length: 'concise' | 'standard' | 'comprehensive')
 /**
  * Builds a prompt specifically for generating the "How to Choose the Right Gift" advice section.
  * Does NOT generate the entire gift guide.
- * Automatically incorporates Global + Editorial writing styles.
+ * Automatically incorporates Global + Editorial writing styles and customizable template rules.
  */
 export function generateGiftGuideHowToChoosePrompt(
   options: GiftGuideHowToChooseOptions,
@@ -60,13 +61,12 @@ export function generateGiftGuideHowToChoosePrompt(
     styles
   );
 
+  const howToChooseTemplate = getTemplateSection('giftGuides', 'howToChoose');
+  const generalRules = getTemplateSection('giftGuides', 'generalWritingRules');
+
   return `Gift Guide "How to Choose the Right Gift" Section Prompt — Science of Gifts
 
-ROLE & TASK:
-Act as a seasoned gifting advisor and cultural curator for "Science of Gifts" writing the buyer's guidance section titled "How to Choose the Right Gift" (or a thematic variation) for a specific gift guide.
-
-SCOPE CONSTRAINT:
-Generate ONLY this advice section. Do NOT write the entire gift guide, product lists, or full article.
+${howToChooseTemplate}
 
 PARENT GIFT GUIDE CONTEXT:
 • Overall Guide Title / Topic: "${guideTitle}"
@@ -78,20 +78,7 @@ BUYER GUIDANCE SPECIFICATIONS:
 ${considerations.split('\n').map(c => `  - ${c}`).join('\n')}
 • Tone of Voice: ${toneDesc}
 • Desired Length: ${lengthDesc}
-
-SECTION WRITING OBJECTIVES:
-1. Provide Genuinely Useful Decision Criteria:
-   - Give the reader concrete mental models to decide between different options (e.g., beginner vs. enthusiast, heirloom display piece vs. daily functional utility, subtle vs. bold designs).
-   - Address common gifting pitfalls specific to "${guideTitle}" (e.g. buying cheap novelty gimmicks that end up in landfills, duplicate tools, or patronizing beginner gear).
-
-2. Make the Advice Topic-Specific:
-   - Avoid generic advice like "think about what they like" or "set a budget". Every tip must feel tailor-made for ${recipient} in the domain of "${guideTitle}".
-   - Provide concrete clues to look for (e.g., what’s already on their bookshelf, what they talk about during weekend downtime, their aesthetic preferences).
 ${additionalSection}
-${styleSection}
-OUTPUT FORMAT:
-Provide:
-1. An Inviting H2 Heading (e.g. "How to Choose the Perfect Gift for [Recipient]")
-2. A Short Introductory Framing Paragraph (2–3 sentences)
-3. 3–5 Actionable Advice Points with bold takeaway titles and clear explanatory prose.`;
+${generalRules ? `\n${generalRules}\n` : ''}
+${styleSection}`;
 }

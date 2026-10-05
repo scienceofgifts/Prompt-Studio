@@ -1,6 +1,6 @@
 {
-  "name": "Science of Gifts Prompt Studio",
-  "description": "Local product photography and editorial writing prompt studio for Science of Gifts.",
+  "name": "Science of Gifts Product Photo Generator",
+  "description": "Local product photo prompt generator for Science of Gifts editorial photography.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

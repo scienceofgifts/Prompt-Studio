@@ -1,7 +1,7 @@
 import { GiftGuideIntroOptions, GiftGuideAngle, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
+import { getTemplateSection } from '../../../utils/templateManager';
 import { WritingStylesConfig } from '../styles';
-import { formatInternalLinksSection } from '../../../utils/internalLinks';
 
 function formatToneDescription(tone: GiftGuideTone): string {
   switch (tone) {
@@ -42,7 +42,7 @@ function formatAngleDescription(angle: GiftGuideAngle): string {
 /**
  * Builds a prompt specifically for generating the Introduction section of a gift guide.
  * Does NOT generate the full gift guide.
- * Automatically incorporates Global + Editorial writing styles.
+ * Automatically incorporates Global + Editorial writing styles and customizable template rules.
  */
 export function generateGiftGuideIntroPrompt(
   options: GiftGuideIntroOptions,
@@ -55,7 +55,6 @@ export function generateGiftGuideIntroPrompt(
     : '• Primary Keyword: None specified (prioritize natural readability)';
   const angleDesc = formatAngleDescription(options.desiredAngle);
   const toneDesc = formatToneDescription(options.tone);
-  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL CURATOR INSTRUCTIONS:\n${options.additionalInstructions.trim()}\n`
     : '';
@@ -65,13 +64,12 @@ export function generateGiftGuideIntroPrompt(
     styles
   );
 
+  const introTemplate = getTemplateSection('giftGuides', 'introduction');
+  const generalRules = getTemplateSection('giftGuides', 'generalWritingRules');
+
   return `Gift Guide Introduction Prompt — Science of Gifts
 
-ROLE & TASK:
-Act as a seasoned cultural and lifestyle essayist writing specifically the INTRODUCTION SECTION for a gift guide published by "Science of Gifts".
-
-SCOPE CONSTRAINT:
-Write ONLY the introductory section (approximately 150–250 words). Do NOT generate the product list, headings for other sections, or the full gift guide. Your output must strictly be the opening narrative of the article.
+${introTemplate}
 
 GIFT GUIDE CONTEXT:
 • Gift Guide Title / Topic: "${title}"
@@ -79,24 +77,7 @@ GIFT GUIDE CONTEXT:
 • Editorial Angle: ${angleDesc}
 • Tone of Voice: ${toneDesc}
 ${keywordSection}
-
-OBJECTIVES FOR THIS INTRODUCTION:
-1. Establish the Topic Naturally:
-   - Hook the reader immediately with an authentic observation, a relatable truth about gifting, or a captivating historical/scientific insight related to the topic.
-   - Avoid generic platitudes and hollow openings like "Finding the perfect gift is hard" or "In today's fast-paced world".
-
-2. Clarify Who This Guide is For:
-   - Clearly identify the recipient persona (${recipient}) and acknowledge their particular tastes, quirks, and standards.
-   - Explain why thoughtful curation matters here, cutting through the noise of mass-market generic items.
-
-3. Build Anticipation & Credibility:
-   - Set up the collection ahead with taste, warmth, and discernment.
-   - Smoothly transition the reader into the first curated item without awkward segue formulas like "Without further ado, let's dive into the list".
-${internalLinksSection}${additionalSection}
-${styleSection}
-OUTPUT FORMAT:
-Provide 2 distinct introduction variations:
-- Option A: Conversational & Narrative (warm, engaging storytelling hook)
-- Option B: Sleek & Editorial (refined, concise, and punchy)
-Followed by a suggested 1-sentence transition line leading into the guide's first product.`;
+${additionalSection}
+${generalRules ? `\n${generalRules}\n` : ''}
+${styleSection}`;
 }

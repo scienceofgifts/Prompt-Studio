@@ -225,6 +225,11 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
               <span className="px-2 py-0.5 rounded-md bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] font-medium">
                 Ratio: {settings.aspectRatio}
               </span>
+              {settings.websiteCropSafe && (
+                <span className="px-2 py-0.5 rounded-md bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0] font-medium">
+                  Crop-Safe: 4:3
+                </span>
+              )}
             </>
           )}
 

@@ -1,7 +1,7 @@
 import { GiftGuideProductCopyOptions, GiftGuideTone } from './types';
 import { composeWritingStyleBlocks } from '../../../utils/styleManager';
+import { getTemplateSection } from '../../../utils/templateManager';
 import { WritingStylesConfig } from '../styles';
-import { formatInternalLinksSection } from '../../../utils/internalLinks';
 
 function formatToneDescription(tone: GiftGuideTone): string {
   switch (tone) {
@@ -36,7 +36,7 @@ function formatLengthDirective(length: 'concise' | 'balanced' | 'detailed'): str
 /**
  * Builds a prompt specifically for writing copy for ONE product WITHIN a gift guide.
  * Does NOT generate the entire gift guide.
- * Automatically incorporates Global + Copy writing styles.
+ * Automatically incorporates Global + Copy writing styles and customizable template rules.
  */
 export function generateGiftGuideProductCopyPrompt(
   options: GiftGuideProductCopyOptions,
@@ -59,8 +59,6 @@ export function generateGiftGuideProductCopyPrompt(
     ? `• Product Reference Link (Provided for context/reference by the human curator): ${options.productUrl.trim()}\n  [Note for model: Do not attempt to access external web servers. Use the link purely as topical title/vendor context.]\n`
     : '';
 
-  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
-
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL CURATOR INSTRUCTIONS:\n${options.additionalInstructions.trim()}\n`
     : '';
@@ -70,13 +68,12 @@ export function generateGiftGuideProductCopyPrompt(
     styles
   );
 
+  const productCopyTemplate = getTemplateSection('giftGuides', 'productCopy');
+  const generalRules = getTemplateSection('giftGuides', 'generalWritingRules');
+
   return `Gift Guide Single-Product Entry Prompt — Science of Gifts
 
-ROLE & TASK:
-Act as a seasoned lifestyle and design editor writing a single curated product feature entry specifically for inclusion WITHIN a gift guide published by "Science of Gifts".
-
-SCOPE CONSTRAINT:
-Write copy for ONLY THIS ONE PRODUCT. Do not generate an entire gift guide, introduction, or other products.
+${productCopyTemplate}
 
 GIFT GUIDE PARENT CONTEXT:
 • Overall Gift Guide Title / Topic: "${guideTitle}"
@@ -92,20 +89,7 @@ ${features.split('\n').map(f => `  - ${f}`).join('\n')}
   ${whyItFits}
 • Desired Length: ${lengthDesc}
 • Voice & Tone: ${toneDesc}
-
-WRITING OBJECTIVES FOR THIS ENTRY:
-1. Explain What Makes the Item Distinctive:
-   - Introduce the item clearly with sensory and tactile precision (materials, aesthetic silhouette, functional delight).
-   - Celebrate its concept and craftsmanship without lapsing into hollow marketing jargon.
-
-2. Explicitly Connect the Item to the Recipient & Guide Topic:
-   - Don't just praise the item in a vacuum; explain why it makes exceptional sense for ${recipient} in the context of "${guideTitle}".
-   - Describe the exact moment of gifting: the curiosity it sparks, the daily ritual it enhances, or the problem it gracefully solves.
-${internalLinksSection}${additionalSection}
-${styleSection}
-OUTPUT FORMAT:
-Provide:
-1. Clean Product Sub-Heading (Product Name + Short Descriptive Tagline)
-2. The Curated Body Copy (written to the specified length)
-3. A 1-sentence "Curator's Gifting Tip" (e.g. how to present or pair the item)`;
+${additionalSection}
+${generalRules ? `\n${generalRules}\n` : ''}
+${styleSection}`;
 }

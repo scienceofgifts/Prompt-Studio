@@ -1,5 +1,4 @@
 import { ProductType, ProductImagePromptTemplate, PromptOptions } from '../types';
-import { getCreativeVariationDirectives } from '../shared/options';
 import { mugPromptTemplate, generateMugPrompt } from './mug';
 import { tshirtPromptTemplate, generateTshirtPrompt } from './tshirt';
 import { hoodiePromptTemplate, generateHoodiePrompt } from './hoodie';
@@ -27,21 +26,7 @@ export const imagePromptTemplates: Record<ProductType, ProductImagePromptTemplat
  */
 export function buildImagePrompt(options: PromptOptions): string {
   const template = imagePromptTemplates[options.productType] || imagePromptTemplates.other;
-  const basePrompt = template.generatePrompt(options);
-
-  if (!basePrompt.includes('FRAMEWORK FOR CONTROLLED CREATIVE VARIATION')) {
-    const variation = getCreativeVariationDirectives();
-    // Insert variation section right before TECHNICAL & CAMERA SETTINGS if present, or before final output requirement
-    if (basePrompt.includes('TECHNICAL & CAMERA SETTINGS:')) {
-      return basePrompt.replace(
-        'TECHNICAL & CAMERA SETTINGS:',
-        `${variation}\n\nTECHNICAL & CAMERA SETTINGS:`
-      );
-    }
-    return `${basePrompt}\n\n${variation}`;
-  }
-
-  return basePrompt;
+  return template.generatePrompt(options);
 }
 
 // Backwards-compatible alias

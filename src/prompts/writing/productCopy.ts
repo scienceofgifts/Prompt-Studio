@@ -3,8 +3,8 @@ import {
   ProductCopyTone,
 } from './types';
 import { composeWritingStyleBlocks } from '../../utils/styleManager';
+import { getTemplateSection } from '../../utils/templateManager';
 import { WritingStylesConfig } from './styles';
-import { formatInternalLinksSection } from '../../utils/internalLinks';
 
 function formatProductCopyTone(tone: ProductCopyTone): string {
   switch (tone) {
@@ -25,7 +25,7 @@ function formatProductCopyTone(tone: ProductCopyTone): string {
 
 /**
  * Builds the complete prompt for writing high-converting, publication-grade Product Page Copy.
- * Automatically incorporates Global + Copy writing styles.
+ * Automatically incorporates Global + Copy writing styles and customizable template rules.
  */
 export function generateProductCopyPrompt(
   options: ProductCopyOptions,
@@ -38,8 +38,6 @@ export function generateProductCopyPrompt(
   const features = options.keyFeatures.trim() || '160 pages of 120 GSM fountain pen-friendly paper, debossed gold foil constellation map, silk ribbon bookmark, lay-flat thread binding, elastic closure';
   const toneDesc = formatProductCopyTone(options.tone);
 
-  const internalLinksSection = formatInternalLinksSection(options.internalLinks);
-
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL PRODUCT BRIEFING:\n${options.additionalInstructions.trim()}\n`
     : '';
@@ -49,12 +47,13 @@ export function generateProductCopyPrompt(
     styles
   );
 
+  const roleAndObjective = getTemplateSection('productCopy', 'roleAndObjective');
+  const requiredDeliverables = getTemplateSection('productCopy', 'requiredDeliverables');
+  const outputFormat = getTemplateSection('productCopy', 'outputFormat');
+
   return `E-Commerce Editorial Product Copy Prompt — Science of Gifts
 
-ROLE & OBJECTIVE:
-Act as a master luxury copywriter for "Science of Gifts", a boutique purveyor of scientifically and historically inspired goods.
-
-Your objective is to craft complete, evocative, high-converting product page copy for a new flagship item. The copy must clearly explain what the item is, celebrate its concept and materials, and connect emotionally with the target customer—without slipping into generic marketing hyperbole.
+${roleAndObjective}
 
 PRODUCT BRIEF:
 • Product Name: ${name}
@@ -65,26 +64,8 @@ PRODUCT BRIEF:
 ${features.split('\n').map(f => `  - ${f}`).join('\n')}
 • Brand Voice & Tone: ${toneDesc}
 
-REQUIRED COPY DELIVERABLES:
-1. Product Title & Editorial Sub-Heading:
-   - Provide a clean, memorable primary product title.
-   - Include a 1-sentence poetic standfirst capturing the product's soul (e.g. "A daily companion for field notes, midnight reflections, and celestial observations").
-
-2. The Editorial Narrative / Story Section (120–180 words):
-   - Transport the customer into the origin of the design: the historical era, astronomical phenomenon, or mathematical beauty that inspired it.
-   - Explain what makes this design meaningful, not just decorative.
-
-3. "Why You'll Love It" / Sensory Details (3–4 Short Bullet Points):
-   - Translate physical features into tactile benefits (e.g., how the paper feels under a nib, how the ceramic feels in hands on a brisk morning, how the glaze catches lamplight).
-   - Use evocative, sensory language without exaggeration.
-
-4. Specifications & Craftsmanship Breakdown:
-   - Clean, organized technical specifications (dimensions, materials, origin, care, packaging).
-
-5. The Gifting Note (60–90 words):
-   - Describe why this item makes an unforgettable gift and who would cherish receiving it. Include a suggested handwritten gift-card sentiment.
-${internalLinksSection}${additionalSection}
+${requiredDeliverables}
+${additionalSection}
 ${styleSection}
-OUTPUT FORMAT:
-Provide the complete product page copy in clean Markdown with distinct section headers, bullet lists, and polished formatting ready to paste into Shopify or a luxury catalog.`;
+${outputFormat}`;
 }

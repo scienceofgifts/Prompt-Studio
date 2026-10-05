@@ -7,19 +7,23 @@ import { PromptResultView, ResultActiveChip } from './components/PromptResultVie
 import { GiftGuideControls } from './components/writing/GiftGuideControls';
 import { ArticleControls } from './components/writing/ArticleControls';
 import { ProductCopyControls } from './components/writing/ProductCopyControls';
+import { ProductDataControls } from './components/writing/ProductDataControls';
+import { SettingsPage } from './components/settings/SettingsPage';
 import { StyleLibraryModal } from './components/writing/StyleLibraryModal';
 import { WritingStyleKey } from './prompts/writing/styles';
+import { TEMPLATES_UPDATED_EVENT } from './utils/templateManager';
 import {
   GenerationSettings,
   StudioToolId,
   GiftGuideCompositeState,
   ArticleOptions,
   ProductCopyOptions,
+  ProductDataOptions,
   buildProductPhotoPrompt,
   generateGiftGuideSectionPrompt,
   generateArticlePrompt,
-  generateArticleWorkflowPrompt,
   generateProductCopyPrompt,
+  generateProductDataPrompt,
 } from './types';
 import { Sparkles, Shield, CheckCircle2 } from 'lucide-react';
 
@@ -31,6 +35,24 @@ const DEFAULT_IMAGE_SETTINGS: GenerationSettings = {
   props: 'subtle-historical',
   aspectRatio: '1:1',
   additionalInstructions: '',
+  theme: 'editorial-still-life',
+  productPosition: 'centered',
+  productPresentation: 'editorial',
+  shotType: 'hero-product',
+  cameraAngle: 'three-quarter',
+  perspective: 'natural',
+  focalLength: 'normal-editorial',
+  depthOfField: 'gentle-falloff',
+  compositionStyle: 'centered',
+  negativeSpace: 'balanced',
+  lightingStyle: 'large-soft-studio',
+  shadowCharacter: 'soft',
+  propLevel: 'minimal',
+  propFamily: 'category-aware',
+  propPlacement: 'background-only',
+  colorPalette: 'science-blue-mint',
+  variationLevel: 'moderate',
+  websiteCropSafe: false,
 };
 
 const DEFAULT_GIFT_GUIDE_STATE: GiftGuideCompositeState = {
@@ -95,6 +117,19 @@ const DEFAULT_PRODUCT_COPY_OPTIONS: ProductCopyOptions = {
   additionalInstructions: 'Highlight the tactile linen bookcloth cover and zero feathering with fountain pen ink.',
 };
 
+const DEFAULT_PRODUCT_DATA_OPTIONS: ProductDataOptions = {
+  productUrl: 'https://scienceofgifts.com/products/galileo-moon-mug',
+  productType: 'Mug',
+  category: 'Astronomy & Stargazing',
+  affiliateType: 'affiliate',
+  priceMode: 'provided',
+  providedPrice: '34.00',
+  editorialPositioning: 'conversation-piece',
+  editorialTone: 'standard',
+  additionalInstructions: 'Focus on high-fired matte black ceramic construction and Galileo Galilei’s original 1610 lunar observations.',
+  hasImage: false,
+};
+
 export default function App() {
   const [activeTool, setActiveTool] = useState<StudioToolId>('product-photography');
 
@@ -129,7 +164,7 @@ export default function App() {
   // ==========================================
   const [articleOptions, setArticleOptions] = useState<ArticleOptions>(DEFAULT_ARTICLE_OPTIONS);
   const [articlePrompt, setArticlePrompt] = useState<string>(() =>
-    generateArticleWorkflowPrompt(DEFAULT_ARTICLE_OPTIONS)
+    generateArticlePrompt(DEFAULT_ARTICLE_OPTIONS)
   );
 
   // ==========================================
@@ -138,6 +173,14 @@ export default function App() {
   const [productCopyOptions, setProductCopyOptions] = useState<ProductCopyOptions>(DEFAULT_PRODUCT_COPY_OPTIONS);
   const [productCopyPrompt, setProductCopyPrompt] = useState<string>(() =>
     generateProductCopyPrompt(DEFAULT_PRODUCT_COPY_OPTIONS)
+  );
+
+  // ==========================================
+  // Tool 5: Catalog Product Data State
+  // ==========================================
+  const [productDataOptions, setProductDataOptions] = useState<ProductDataOptions>(DEFAULT_PRODUCT_DATA_OPTIONS);
+  const [productDataPrompt, setProductDataPrompt] = useState<string>(() =>
+    generateProductDataPrompt(DEFAULT_PRODUCT_DATA_OPTIONS)
   );
 
   // ==========================================
@@ -154,20 +197,48 @@ export default function App() {
   const handleStylesUpdated = () => {
     // Regenerate active writing prompts using updated style rules
     setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
-    setArticlePrompt(generateArticleWorkflowPrompt(articleOptions));
+    setArticlePrompt(generateArticlePrompt(articleOptions));
     setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
   };
 
-  // Listen to custom style update events dispatched across the app
+  const handleTemplatesUpdated = () => {
+    // Regenerate all 5 prompts using updated customizable templates
+    setImagePrompt(
+      buildProductPhotoPrompt({
+        ...imageSettings,
+        hasReferenceImage: Boolean(uploadedImage),
+        referenceImageName: imageInfo?.name,
+      })
+    );
+    setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
+    setArticlePrompt(generateArticlePrompt(articleOptions));
+    setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
+    setProductDataPrompt(
+      generateProductDataPrompt({
+        ...productDataOptions,
+        hasImage: Boolean(uploadedImage),
+        imageName: imageInfo?.name,
+      })
+    );
+  };
+
+  // Listen to custom style and template update events dispatched across the app
   useEffect(() => {
-    const handleStorageUpdate = () => {
+    const handleStyleStorageUpdate = () => {
       handleStylesUpdated();
     };
-    window.addEventListener('scienceOfGifts_styles_updated', handleStorageUpdate);
-    return () => {
-      window.removeEventListener('scienceOfGifts_styles_updated', handleStorageUpdate);
+    const handleTemplateStorageUpdate = () => {
+      handleTemplatesUpdated();
     };
-  }, [giftGuideState, articleOptions, productCopyOptions]);
+
+    window.addEventListener('scienceOfGifts_styles_updated', handleStyleStorageUpdate);
+    window.addEventListener(TEMPLATES_UPDATED_EVENT, handleTemplateStorageUpdate);
+
+    return () => {
+      window.removeEventListener('scienceOfGifts_styles_updated', handleStyleStorageUpdate);
+      window.removeEventListener(TEMPLATES_UPDATED_EVENT, handleTemplateStorageUpdate);
+    };
+  }, [giftGuideState, articleOptions, productCopyOptions, productDataOptions, imageSettings, uploadedImage, imageInfo]);
 
   // ==========================================
   // Image Handlers
@@ -184,6 +255,14 @@ export default function App() {
       referenceImageName: info.name,
     });
     setImagePrompt(updated);
+
+    const updatedDataOptions: ProductDataOptions = {
+      ...productDataOptions,
+      hasImage: true,
+      imageName: info.name,
+    };
+    setProductDataOptions(updatedDataOptions);
+    setProductDataPrompt(generateProductDataPrompt(updatedDataOptions));
   };
 
   const handleClearImage = () => {
@@ -194,6 +273,14 @@ export default function App() {
       hasReferenceImage: false,
     });
     setImagePrompt(updated);
+
+    const updatedDataOptions: ProductDataOptions = {
+      ...productDataOptions,
+      hasImage: false,
+      imageName: undefined,
+    };
+    setProductDataOptions(updatedDataOptions);
+    setProductDataPrompt(generateProductDataPrompt(updatedDataOptions));
   };
 
   const handleApplySampleSettings = (sampleSettings: Partial<GenerationSettings>) => {
@@ -234,19 +321,31 @@ export default function App() {
     setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
   };
 
-  const handleArticleOptionsChange = (newOptions: ArticleOptions) => {
-    setArticleOptions(newOptions);
-    if (newOptions.activeWorkflowTab !== articleOptions.activeWorkflowTab) {
-      setArticlePrompt(generateArticleWorkflowPrompt(newOptions));
-    }
-  };
-
   const handleGenerateArticlePrompt = () => {
-    setArticlePrompt(generateArticleWorkflowPrompt(articleOptions));
+    setArticlePrompt(generateArticlePrompt(articleOptions));
   };
 
   const handleGenerateProductCopyPrompt = () => {
     setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
+  };
+
+  const handleProductDataOptionsChange = (newOpts: ProductDataOptions) => {
+    const optsWithImage = {
+      ...newOpts,
+      hasImage: Boolean(uploadedImage),
+      imageName: imageInfo?.name,
+    };
+    setProductDataOptions(optsWithImage);
+    setProductDataPrompt(generateProductDataPrompt(optsWithImage));
+  };
+
+  const handleGenerateProductDataPrompt = () => {
+    const optsWithImage = {
+      ...productDataOptions,
+      hasImage: Boolean(uploadedImage),
+      imageName: imageInfo?.name,
+    };
+    setProductDataPrompt(generateProductDataPrompt(optsWithImage));
   };
 
   // Active prompt configuration for right column view
@@ -305,31 +404,15 @@ export default function App() {
     onCurrentPromptChange = setArticlePrompt;
     onCurrentClear = () => setArticlePrompt('');
     onCurrentRegenerate = handleGenerateArticlePrompt;
-
-    const articleTabTitles: Record<string, string> = {
-      'research-angles': 'Research: Editorial Angles Prompt',
-      'research-outline': 'Research: Narrative Outline Prompt',
-      'writing-article': 'Editorial Article Prompt',
-      'editing-humanize': 'Editing: Base Prompt (Humanize)',
-      'editing-tighten': 'Editing: Tighten & Refine Prompt',
-    };
-
-    const currentTab = articleOptions.activeWorkflowTab || 'writing-article';
-    currentToolTitle = articleTabTitles[currentTab] || 'Editorial Article Prompt';
+    currentToolTitle = 'Editorial Article Prompt';
     currentToolSubtitle = 'Ready to paste into Claude / ChatGPT / Gemini';
-
     currentActiveChips = [
-      { label: 'Step', value: currentTab.replace(/-/g, ' ') },
-      { label: 'Topic', value: articleOptions.topic || 'Article Topic' },
+      { label: 'Type', value: articleOptions.articleType },
+      { label: 'Intent', value: articleOptions.searchIntent.replace(/-/g, ' ') },
+      { label: 'Tone', value: articleOptions.tone.replace(/-/g, ' ') },
+      { label: 'Style Rules', value: 'Global + Editorial' },
+      { label: 'Keyword', value: articleOptions.primaryKeyword || 'Topical Authority' },
     ];
-
-    if (currentTab === 'writing-article') {
-      currentActiveChips.push(
-        { label: 'Type', value: articleOptions.articleType },
-        { label: 'Tone', value: articleOptions.tone.replace(/-/g, ' ') },
-        { label: 'Style Rules', value: 'Global + Editorial' }
-      );
-    }
   } else if (activeTool === 'product-copy') {
     currentPrompt = productCopyPrompt;
     onCurrentPromptChange = setProductCopyPrompt;
@@ -341,6 +424,26 @@ export default function App() {
       { label: 'Product', value: productCopyOptions.productName || 'Catalog Product' },
       { label: 'Tone', value: productCopyOptions.tone.replace(/-/g, ' ') },
       { label: 'Style Rules', value: 'Global + Copy' },
+    ];
+  } else if (activeTool === 'product-data') {
+    currentPrompt = productDataPrompt;
+    onCurrentPromptChange = setProductDataPrompt;
+    onCurrentClear = () => setProductDataPrompt('');
+    onCurrentRegenerate = handleGenerateProductDataPrompt;
+    currentToolTitle = 'Product Data Catalog Record Prompt';
+    currentToolSubtitle = 'Ready to paste into ChatGPT / Claude';
+    currentActiveChips = [
+      { label: 'Schema', value: 'Science of Gifts Product YAML' },
+      { label: 'Type', value: productDataOptions.productType },
+      { label: 'Category', value: productDataOptions.category },
+      { label: 'Link Type', value: productDataOptions.affiliateType },
+      {
+        label: 'Price',
+        value:
+          productDataOptions.priceMode === 'provided'
+            ? `$${productDataOptions.providedPrice || '0.00'}`
+            : 'Extract from URL',
+      },
     ];
   }
 
@@ -358,129 +461,150 @@ export default function App() {
 
       {/* Main Content Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Subtle Brand Introduction Header */}
-        <div className="mb-8 text-center max-w-3xl mx-auto">
-          <h1 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-[#0f172a] leading-tight">
-            Science of Gifts <span className="italic font-normal text-[#0f766e]">Prompt Studio.</span>
-          </h1>
-          <p className="mt-3 text-sm sm:text-base text-[#64748b] leading-relaxed">
-            {activeTool === 'product-photography' &&
-              'Construct production-grade photography prompts that strictly preserve your product’s logos, artwork, proportions, and construction.'}
-            {activeTool === 'gift-guide' &&
-              'Generate focused, modular prompts for individual sections of your self-authored gift guides: introduction, single-product entries, category spotlights, buyer advice, FAQs, and metadata.'}
-            {activeTool === 'article' &&
-              'Produce thoughtful long-form magazine essays, explainer guides, and etiquette articles without robotic SEO filler.'}
-            {activeTool === 'product-copy' &&
-              'Craft evocative, high-converting product page briefs celebrating craftsmanship, tactile materials, and honest storytelling.'}
-          </p>
+        {activeTool === 'settings' ? (
+          <SettingsPage onBackToStudio={() => setActiveTool('product-photography')} />
+        ) : (
+          <>
+            {/* Subtle Brand Introduction Header */}
+            <div className="mb-8 text-center max-w-3xl mx-auto">
+              <h1 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-[#0f172a] leading-tight">
+                Science of Gifts <span className="italic font-normal text-[#0f766e]">Prompt Studio.</span>
+              </h1>
+              <p className="mt-3 text-sm sm:text-base text-[#64748b] leading-relaxed">
+                {activeTool === 'product-photography' &&
+                  'Construct production-grade photography prompts that strictly preserve your product’s logos, artwork, proportions, and construction.'}
+                {activeTool === 'gift-guide' &&
+                  'Generate focused, modular prompts for individual sections of your self-authored gift guides: introduction, single-product entries, category spotlights, buyer advice, FAQs, and metadata.'}
+                {activeTool === 'article' &&
+                  'Produce thoughtful long-form magazine essays, explainer guides, and etiquette articles without robotic SEO filler.'}
+                {activeTool === 'product-copy' &&
+                  'Craft evocative, high-converting product page briefs celebrating craftsmanship, tactile materials, and honest storytelling.'}
+                {activeTool === 'product-data' &&
+                  'Generate factually accurate, structured Science of Gifts YAML catalog records and rich metadata for any product.'}
+              </p>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs text-[#475569]">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
-              <Shield className="w-3.5 h-3.5 text-[#0f766e]" />
-              100% Local Browser Engine
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#0284c7]" />
-              Zero API Keys or Subscriptions
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-[#d97706]" />
-              Modular Prompts for Any LLM
-            </span>
-          </div>
-        </div>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs text-[#475569]">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
+                  <Shield className="w-3.5 h-3.5 text-[#0f766e]" />
+                  100% Local Browser Engine
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#0284c7]" />
+                  Zero API Keys or Subscriptions
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
+                  <Sparkles className="w-3.5 h-3.5 text-[#d97706]" />
+                  Modular Prompts for Any LLM
+                </span>
+              </div>
+            </div>
 
-        {/* Studio Layout: Left Controls, Right Display */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* LEFT COLUMN: Controls for Active Tool (6 cols on lg) */}
-          <div className="lg:col-span-6 space-y-6">
-            {/* 1. PRODUCT PHOTOGRAPHY */}
-            {activeTool === 'product-photography' && (
-              <>
-                <div className="space-y-2">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-[#334155] flex items-center justify-between">
-                    <span>1. Upload Product Image (Local Preview)</span>
-                    {uploadedImage && (
-                      <span className="text-[11px] font-semibold text-[#0f766e] lowercase">
-                        loaded locally
-                      </span>
-                    )}
-                  </h2>
-                  <UploadDropzone
-                    image={uploadedImage}
+            {/* Studio Layout: Left Controls, Right Display */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* LEFT COLUMN: Controls for Active Tool (6 cols on lg) */}
+              <div className="lg:col-span-6 space-y-6">
+                {/* 1. PRODUCT PHOTOGRAPHY */}
+                {activeTool === 'product-photography' && (
+                  <>
+                    <div className="space-y-2">
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-[#334155] flex items-center justify-between">
+                        <span>1. Upload Product Image (Local Preview)</span>
+                        {uploadedImage && (
+                          <span className="text-[11px] font-semibold text-[#0f766e] lowercase">
+                            loaded locally
+                          </span>
+                        )}
+                      </h2>
+                      <UploadDropzone
+                        image={uploadedImage}
+                        imageInfo={imageInfo}
+                        onImageSelected={handleImageSelected}
+                        onClear={handleClearImage}
+                        onApplySampleSettings={handleApplySampleSettings}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-[#334155]">
+                        2. Editorial Staging & Environment
+                      </h2>
+                      <ConfigurationControls
+                        settings={imageSettings}
+                        onChange={setImageSettings}
+                        onGenerate={handleGenerateImagePrompt}
+                        hasImage={Boolean(uploadedImage)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* 2. WRITING: GIFT GUIDES (MODULAR SECTIONS) */}
+                {activeTool === 'gift-guide' && (
+                  <GiftGuideControls
+                    state={giftGuideState}
+                    onChange={handleGiftGuideStateChange}
+                    onGenerate={handleGenerateGiftGuidePrompt}
+                    onOpenStyleLibrary={handleOpenStyleLibrary}
+                  />
+                )}
+
+                {/* 3. WRITING: ARTICLES */}
+                {activeTool === 'article' && (
+                  <ArticleControls
+                    options={articleOptions}
+                    onChange={setArticleOptions}
+                    onGenerate={handleGenerateArticlePrompt}
+                    onOpenStyleLibrary={() => handleOpenStyleLibrary('editorial')}
+                  />
+                )}
+
+                {/* 4. WRITING: PRODUCT COPY (STANDALONE) */}
+                {activeTool === 'product-copy' && (
+                  <ProductCopyControls
+                    options={productCopyOptions}
+                    onChange={setProductCopyOptions}
+                    onGenerate={handleGenerateProductCopyPrompt}
+                    onOpenStyleLibrary={() => handleOpenStyleLibrary('copy')}
+                  />
+                )}
+
+                {/* 5. WRITING: PRODUCT DATA (CATALOG RECORD) */}
+                {activeTool === 'product-data' && (
+                  <ProductDataControls
+                    options={productDataOptions}
+                    onChange={handleProductDataOptionsChange}
+                    onGenerate={handleGenerateProductDataPrompt}
+                    uploadedImage={uploadedImage}
                     imageInfo={imageInfo}
                     onImageSelected={handleImageSelected}
-                    onClear={handleClearImage}
-                    onApplySampleSettings={handleApplySampleSettings}
+                    onClearImage={handleClearImage}
                   />
-                </div>
+                )}
+              </div>
 
-                <div className="space-y-2">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-[#334155]">
-                    2. Editorial Staging & Environment
-                  </h2>
-                  <ConfigurationControls
-                    settings={imageSettings}
-                    onChange={setImageSettings}
-                    onGenerate={handleGenerateImagePrompt}
-                    hasImage={Boolean(uploadedImage)}
-                  />
-                </div>
-              </>
-            )}
+              {/* RIGHT COLUMN: Generated Prompt View (6 cols on lg) */}
+              <div className="lg:col-span-6 space-y-6 sticky top-24">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-[#334155] flex items-center justify-between">
+                  <span>{currentToolTitle}</span>
+                  <span className="text-[11px] text-[#64748b]">Ready to copy</span>
+                </h2>
 
-            {/* 2. WRITING: GIFT GUIDES (MODULAR SECTIONS) */}
-            {activeTool === 'gift-guide' && (
-              <GiftGuideControls
-                state={giftGuideState}
-                onChange={handleGiftGuideStateChange}
-                onGenerate={handleGenerateGiftGuidePrompt}
-                onOpenStyleLibrary={handleOpenStyleLibrary}
-              />
-            )}
-
-            {/* 3. WRITING: ARTICLES */}
-            {activeTool === 'article' && (
-              <ArticleControls
-                options={articleOptions}
-                onChange={handleArticleOptionsChange}
-                onGenerate={handleGenerateArticlePrompt}
-                onOpenStyleLibrary={() => handleOpenStyleLibrary('editorial')}
-              />
-            )}
-
-            {/* 4. WRITING: PRODUCT COPY (STANDALONE) */}
-            {activeTool === 'product-copy' && (
-              <ProductCopyControls
-                options={productCopyOptions}
-                onChange={setProductCopyOptions}
-                onGenerate={handleGenerateProductCopyPrompt}
-                onOpenStyleLibrary={() => handleOpenStyleLibrary('copy')}
-              />
-            )}
-          </div>
-
-          {/* RIGHT COLUMN: Generated Prompt View (6 cols on lg) */}
-          <div className="lg:col-span-6 space-y-6 sticky top-24">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[#334155] flex items-center justify-between">
-              <span>{currentToolTitle}</span>
-              <span className="text-[11px] text-[#64748b]">Ready to copy</span>
-            </h2>
-
-            <PromptResultView
-              prompt={currentPrompt}
-              onPromptChange={onCurrentPromptChange}
-              onClear={onCurrentClear}
-              onRegenerate={onCurrentRegenerate}
-              toolTitle={currentToolTitle}
-              toolSubtitle={currentToolSubtitle}
-              referenceImage={activeTool === 'product-photography' ? uploadedImage : null}
-              imageInfo={activeTool === 'product-photography' ? imageInfo : null}
-              settings={activeTool === 'product-photography' ? imageSettings : undefined}
-              activeChips={activeTool !== 'product-photography' ? currentActiveChips : undefined}
-            />
-          </div>
-        </div>
+                <PromptResultView
+                  prompt={currentPrompt}
+                  onPromptChange={onCurrentPromptChange}
+                  onClear={onCurrentClear}
+                  onRegenerate={onCurrentRegenerate}
+                  toolTitle={currentToolTitle}
+                  toolSubtitle={currentToolSubtitle}
+                  referenceImage={activeTool === 'product-photography' ? uploadedImage : null}
+                  imageInfo={activeTool === 'product-photography' ? imageInfo : null}
+                  settings={activeTool === 'product-photography' ? imageSettings : undefined}
+                  activeChips={activeTool !== 'product-photography' ? currentActiveChips : undefined}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       {/* Centralized Writing Style Library Modal */}

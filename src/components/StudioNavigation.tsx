@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Camera,
   Gift,
@@ -6,9 +6,12 @@ import {
   ShoppingBag,
   Sparkles,
   PenTool,
+  Database,
+  Sliders,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import { StudioToolId } from '../prompts/writing/types';
-import { Sliders } from 'lucide-react';
+import { countCustomizedTemplates, TEMPLATES_UPDATED_EVENT } from '../utils/templateManager';
 
 interface StudioNavigationProps {
   activeTool: StudioToolId;
@@ -21,6 +24,18 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
   onSelectTool,
   onOpenStyleLibrary,
 }) => {
+  const [customizedCount, setCustomizedCount] = useState<number>(() => countCustomizedTemplates());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setCustomizedCount(countCustomizedTemplates());
+    };
+    window.addEventListener(TEMPLATES_UPDATED_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(TEMPLATES_UPDATED_EVENT, handleUpdate);
+    };
+  }, []);
+
   const tools: {
     id: StudioToolId;
     category: 'image' | 'writing';
@@ -55,6 +70,13 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
       label: 'Product Copy',
       icon: <ShoppingBag className="w-4 h-4" />,
       shortDesc: 'High-converting boutique catalog descriptions',
+    },
+    {
+      id: 'product-data',
+      category: 'writing',
+      label: 'Product Data',
+      icon: <Database className="w-4 h-4" />,
+      shortDesc: 'Structured YAML product records & catalog metadata',
     },
   ];
 
@@ -125,9 +147,9 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
             </div>
           </div>
 
-          {/* Right Action / Mode indicator */}
-          <div className="flex items-center gap-3">
-            {activeTool !== 'product-photography' && onOpenStyleLibrary && (
+          {/* Right Action / Mode indicator & Settings */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {activeTool !== 'product-photography' && activeTool !== 'settings' && onOpenStyleLibrary && (
               <button
                 type="button"
                 onClick={onOpenStyleLibrary}
@@ -139,14 +161,34 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
               </button>
             )}
 
-            <div className="text-right hidden lg:block">
-              <span className="text-[11px] font-medium text-[#64748b]">
-                Active Studio Mode:{' '}
-                <strong className="text-[#0f172a]">
-                  {tools.find((t) => t.id === activeTool)?.label}
-                </strong>
-              </span>
-            </div>
+            {/* Settings Tab / Page Button */}
+            <button
+              type="button"
+              onClick={() => onSelectTool('settings')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTool === 'settings'
+                  ? 'bg-[#0f172a] text-white shadow-xs ring-1 ring-[#0f172a]'
+                  : 'text-[#475569] bg-[#f8fafc] hover:bg-[#f1f5f9] hover:text-[#0f172a] border border-[#e2e8f0]'
+              }`}
+              title="Prompt Template Settings"
+            >
+              <SettingsIcon className={`w-3.5 h-3.5 ${activeTool === 'settings' ? 'text-white' : 'text-[#64748b]'}`} />
+              <span>Settings</span>
+              {customizedCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-[#f59e0b]" title={`${customizedCount} customized templates`} />
+              )}
+            </button>
+
+            {activeTool !== 'settings' && (
+              <div className="text-right hidden xl:block pl-2 border-l border-[#e2e8f0]">
+                <span className="text-[11px] font-medium text-[#64748b]">
+                  Active:{' '}
+                  <strong className="text-[#0f172a]">
+                    {tools.find((t) => t.id === activeTool)?.label}
+                  </strong>
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
