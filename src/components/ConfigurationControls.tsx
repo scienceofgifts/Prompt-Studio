@@ -104,6 +104,7 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
       colorPalette: 'science-blue-mint',
       variationLevel: 'moderate',
       websiteCropSafe: false,
+      includePottedPlant: false,
     });
   };
 
@@ -883,6 +884,26 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* Potted Plant Styling Toggle */}
+          <div className="pt-4 border-t border-[#f1f5f9]">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(settings.includePottedPlant)}
+                onChange={(e) => updateSetting('includePottedPlant', e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7] border-[#cbd5e1] cursor-pointer"
+              />
+              <div>
+                <span className="text-xs font-bold text-[#0f172a] block">
+                  Potted Plant Styling
+                </span>
+                <span className="text-[11px] text-[#64748b] leading-tight block mt-0.5">
+                  Include a realistic potted plant as a secondary styling element in Gemini product photographs.
+                </span>
+              </div>
+            </label>
           </div>
         </div>
       )}

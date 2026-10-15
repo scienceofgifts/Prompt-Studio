@@ -67,6 +67,7 @@ export interface GenerationSettings {
   variationToggles?: VariationToggles;
 
   websiteCropSafe?: boolean;
+  includePottedPlant?: boolean;
 }
 
 export interface SampleProduct {

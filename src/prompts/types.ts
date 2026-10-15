@@ -273,6 +273,7 @@ export interface PromptOptions {
   variationToggles?: VariationToggles;
 
   websiteCropSafe?: boolean;
+  includePottedPlant?: boolean;
 }
 
 // Alias for backwards compatibility

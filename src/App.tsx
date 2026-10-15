@@ -20,6 +20,8 @@ import {
   ProductCopyOptions,
   ProductDataOptions,
   buildProductPhotoPrompt,
+  buildChatGPTPhotoPrompt,
+  buildGeminiPhotoPrompt,
   generateGiftGuideSectionPrompt,
   generateArticlePrompt,
   generateProductCopyPrompt,
@@ -134,7 +136,7 @@ export default function App() {
   const [activeTool, setActiveTool] = useState<StudioToolId>('product-photography');
 
   // ==========================================
-  // Tool 1: Product Photography State
+  // Tool 1: Product Photography State (Dual-Model: ChatGPT & Gemini)
   // ==========================================
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imageInfo, setImageInfo] = useState<{
@@ -144,12 +146,29 @@ export default function App() {
     height?: number;
   } | null>(null);
   const [imageSettings, setImageSettings] = useState<GenerationSettings>(DEFAULT_IMAGE_SETTINGS);
-  const [imagePrompt, setImagePrompt] = useState<string>(() =>
-    buildProductPhotoPrompt({
+
+  const [chatgptPrompt, setChatgptPrompt] = useState<string>(() =>
+    buildChatGPTPhotoPrompt({
       ...DEFAULT_IMAGE_SETTINGS,
       hasReferenceImage: false,
     })
   );
+  const [geminiPrompt, setGeminiPrompt] = useState<string>(() =>
+    buildGeminiPhotoPrompt({
+      ...DEFAULT_IMAGE_SETTINGS,
+      hasReferenceImage: false,
+    })
+  );
+
+  const updatePhotoPrompts = (settings: GenerationSettings, hasRef: boolean, refName?: string) => {
+    const opts = {
+      ...settings,
+      hasReferenceImage: hasRef,
+      referenceImageName: refName,
+    };
+    setChatgptPrompt(buildChatGPTPhotoPrompt(opts));
+    setGeminiPrompt(buildGeminiPhotoPrompt(opts));
+  };
 
   // ==========================================
   // Tool 2: Gift Guides State (Modular Section Prompt System)
@@ -202,14 +221,8 @@ export default function App() {
   };
 
   const handleTemplatesUpdated = () => {
-    // Regenerate all 5 prompts using updated customizable templates
-    setImagePrompt(
-      buildProductPhotoPrompt({
-        ...imageSettings,
-        hasReferenceImage: Boolean(uploadedImage),
-        referenceImageName: imageInfo?.name,
-      })
-    );
+    // Regenerate all prompts using updated customizable templates
+    updatePhotoPrompts(imageSettings, Boolean(uploadedImage), imageInfo?.name);
     setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
     setArticlePrompt(generateArticlePrompt(articleOptions));
     setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
@@ -249,12 +262,7 @@ export default function App() {
   ) => {
     setUploadedImage(dataUrl);
     setImageInfo(info);
-    const updated = buildProductPhotoPrompt({
-      ...imageSettings,
-      hasReferenceImage: true,
-      referenceImageName: info.name,
-    });
-    setImagePrompt(updated);
+    updatePhotoPrompts(imageSettings, true, info.name);
 
     const updatedDataOptions: ProductDataOptions = {
       ...productDataOptions,
@@ -268,11 +276,7 @@ export default function App() {
   const handleClearImage = () => {
     setUploadedImage(null);
     setImageInfo(null);
-    const updated = buildProductPhotoPrompt({
-      ...imageSettings,
-      hasReferenceImage: false,
-    });
-    setImagePrompt(updated);
+    updatePhotoPrompts(imageSettings, false);
 
     const updatedDataOptions: ProductDataOptions = {
       ...productDataOptions,
@@ -289,21 +293,11 @@ export default function App() {
       ...sampleSettings,
     };
     setImageSettings(newSettings);
-    const updated = buildProductPhotoPrompt({
-      ...newSettings,
-      hasReferenceImage: Boolean(uploadedImage),
-      referenceImageName: imageInfo?.name,
-    });
-    setImagePrompt(updated);
+    updatePhotoPrompts(newSettings, Boolean(uploadedImage), imageInfo?.name);
   };
 
   const handleGenerateImagePrompt = () => {
-    const updated = buildProductPhotoPrompt({
-      ...imageSettings,
-      hasReferenceImage: Boolean(uploadedImage),
-      referenceImageName: imageInfo?.name,
-    });
-    setImagePrompt(updated);
+    updatePhotoPrompts(imageSettings, Boolean(uploadedImage), imageInfo?.name);
   };
 
   // ==========================================
@@ -349,10 +343,10 @@ export default function App() {
   };
 
   // Active prompt configuration for right column view
-  let currentPrompt = imagePrompt;
-  let onCurrentPromptChange = setImagePrompt;
-  let onCurrentClear = () => setImagePrompt('');
-  let onCurrentRegenerate = handleGenerateImagePrompt;
+  let currentPrompt = '';
+  let onCurrentPromptChange = (val: string) => {};
+  let onCurrentClear = () => {};
+  let onCurrentRegenerate = () => {};
   let currentToolTitle = 'Product Photo Prompt';
   let currentToolSubtitle = 'Ready to paste into Gemini / Midjourney / Flux';
   let currentActiveChips: ResultActiveChip[] = [];
@@ -472,7 +466,7 @@ export default function App() {
               </h1>
               <p className="mt-3 text-sm sm:text-base text-[#64748b] leading-relaxed">
                 {activeTool === 'product-photography' &&
-                  'Construct production-grade photography prompts that strictly preserve your product’s logos, artwork, proportions, and construction.'}
+                  'Construct production-grade photography prompts optimized for ChatGPT (DALL-E 3) and Google Gemini Multimodal Studio with strict product fidelity.'}
                 {activeTool === 'gift-guide' &&
                   'Generate focused, modular prompts for individual sections of your self-authored gift guides: introduction, single-product entries, category spotlights, buyer advice, FAQs, and metadata.'}
                 {activeTool === 'article' &&
@@ -494,7 +488,7 @@ export default function App() {
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
                   <Sparkles className="w-3.5 h-3.5 text-[#d97706]" />
-                  Modular Prompts for Any LLM
+                  Dual-Model ChatGPT & Gemini Studio
                 </span>
               </div>
             </div>
@@ -585,17 +579,32 @@ export default function App() {
               {/* RIGHT COLUMN: Generated Prompt View (6 cols on lg) */}
               <div className="lg:col-span-6 space-y-6 sticky top-24">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-[#334155] flex items-center justify-between">
-                  <span>{currentToolTitle}</span>
+                  <span>{activeTool === 'product-photography' ? 'Product Photography Studio' : currentToolTitle}</span>
                   <span className="text-[11px] text-[#64748b]">Ready to copy</span>
                 </h2>
 
                 <PromptResultView
-                  prompt={currentPrompt}
-                  onPromptChange={onCurrentPromptChange}
-                  onClear={onCurrentClear}
-                  onRegenerate={onCurrentRegenerate}
-                  toolTitle={currentToolTitle}
-                  toolSubtitle={currentToolSubtitle}
+                  prompt={activeTool !== 'product-photography' ? currentPrompt : undefined}
+                  onPromptChange={activeTool !== 'product-photography' ? onCurrentPromptChange : undefined}
+                  chatgptPrompt={activeTool === 'product-photography' ? chatgptPrompt : undefined}
+                  geminiPrompt={activeTool === 'product-photography' ? geminiPrompt : undefined}
+                  onChatgptPromptChange={activeTool === 'product-photography' ? setChatgptPrompt : undefined}
+                  onGeminiPromptChange={activeTool === 'product-photography' ? setGeminiPrompt : undefined}
+                  onClear={
+                    activeTool === 'product-photography'
+                      ? () => {
+                          setChatgptPrompt('');
+                          setGeminiPrompt('');
+                        }
+                      : onCurrentClear
+                  }
+                  onRegenerate={activeTool === 'product-photography' ? handleGenerateImagePrompt : onCurrentRegenerate}
+                  toolTitle={activeTool === 'product-photography' ? 'Product Photography Prompts' : currentToolTitle}
+                  toolSubtitle={
+                    activeTool === 'product-photography'
+                      ? 'Optimized for ChatGPT (DALL-E 3) & Google Gemini Multimodal Studio'
+                      : currentToolSubtitle
+                  }
                   referenceImage={activeTool === 'product-photography' ? uploadedImage : null}
                   imageInfo={activeTool === 'product-photography' ? imageInfo : null}
                   settings={activeTool === 'product-photography' ? imageSettings : undefined}
@@ -622,7 +631,7 @@ export default function App() {
             Science of Gifts • Prompt Studio
           </p>
           <p className="text-[11px]">
-            Product Photography & Editorial Writing Prompt Studio • 100% Local Browser Engine • No APIs
+            Product Photography & Editorial Writing Prompt Studio • Dual-Model ChatGPT & Gemini Engine • 100% Local
           </p>
         </div>
       </footer>

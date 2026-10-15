@@ -8,6 +8,7 @@ import { waterBottlePromptTemplate, generateWaterBottlePrompt } from './waterBot
 import { tumblerPromptTemplate, generateTumblerPrompt } from './tumbler';
 import { posterPromptTemplate, generatePosterPrompt } from './poster';
 import { otherPromptTemplate, generateOtherPrompt } from './other';
+import { buildChatGPTPhotoPrompt, buildGeminiPhotoPrompt } from '../shared/modelFormatters';
 
 export const imagePromptTemplates: Record<ProductType, ProductImagePromptTemplate> = {
   mug: mugPromptTemplate,
@@ -33,6 +34,8 @@ export function buildImagePrompt(options: PromptOptions): string {
 export const buildProductPhotoPrompt = buildImagePrompt;
 
 export {
+  buildChatGPTPhotoPrompt,
+  buildGeminiPhotoPrompt,
   mugPromptTemplate,
   generateMugPrompt,
   tshirtPromptTemplate,

@@ -6,6 +6,7 @@ import {
   RotateCcw,
   FileText,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { GenerationSettings } from '../types';
 
@@ -15,8 +16,12 @@ export interface ResultActiveChip {
 }
 
 interface PromptResultViewProps {
-  prompt: string;
-  onPromptChange: (newPrompt: string) => void;
+  prompt?: string;
+  onPromptChange?: (newPrompt: string) => void;
+  chatgptPrompt?: string;
+  geminiPrompt?: string;
+  onChatgptPromptChange?: (newPrompt: string) => void;
+  onGeminiPromptChange?: (newPrompt: string) => void;
   onClear: () => void;
   onRegenerate: () => void;
   toolTitle?: string;
@@ -28,8 +33,12 @@ interface PromptResultViewProps {
 }
 
 export const PromptResultView: React.FC<PromptResultViewProps> = ({
-  prompt,
-  onPromptChange,
+  prompt: singlePrompt = '',
+  onPromptChange: onSinglePromptChange = () => {},
+  chatgptPrompt,
+  geminiPrompt,
+  onChatgptPromptChange = () => {},
+  onGeminiPromptChange = () => {},
   onClear,
   onRegenerate,
   toolTitle = 'Generated Prompt',
@@ -39,31 +48,51 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
   settings,
   activeChips,
 }) => {
+  const isDualModel = chatgptPrompt !== undefined && geminiPrompt !== undefined;
+  const [activeTab, setActiveTab] = useState<'chatgpt' | 'gemini'>('chatgpt');
   const [copied, setCopied] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const wordCount = prompt ? prompt.trim().split(/\s+/).filter(Boolean).length : 0;
-  const charCount = prompt.length;
+  const activePrompt = isDualModel
+    ? activeTab === 'chatgpt'
+      ? chatgptPrompt
+      : geminiPrompt
+    : singlePrompt;
+
+  const handleActivePromptChange = (newVal: string) => {
+    if (isDualModel) {
+      if (activeTab === 'chatgpt') {
+        onChatgptPromptChange(newVal);
+      } else {
+        onGeminiPromptChange(newVal);
+      }
+    } else {
+      onSinglePromptChange(newVal);
+    }
+  };
+
+  const wordCount = activePrompt ? activePrompt.trim().split(/\s+/).filter(Boolean).length : 0;
+  const charCount = activePrompt.length;
 
   const handleCopy = async () => {
-    if (!prompt) return;
+    if (!activePrompt) return;
     try {
-      await navigator.clipboard.writeText(prompt);
+      await navigator.clipboard.writeText(activePrompt);
       setCopied(true);
-      setStatusMessage('Prompt copied.');
+      setStatusMessage(isDualModel ? `${activeTab === 'chatgpt' ? 'ChatGPT' : 'Gemini'} prompt copied.` : 'Prompt copied.');
       setTimeout(() => {
         setCopied(false);
         setStatusMessage(null);
       }, 2500);
     } catch {
       const textArea = document.createElement('textarea');
-      textArea.value = prompt;
+      textArea.value = activePrompt;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
       setCopied(true);
-      setStatusMessage('Prompt copied.');
+      setStatusMessage(isDualModel ? `${activeTab === 'chatgpt' ? 'ChatGPT' : 'Gemini'} prompt copied.` : 'Prompt copied.');
       setTimeout(() => {
         setCopied(false);
         setStatusMessage(null);
@@ -112,9 +141,16 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#0f172a] uppercase tracking-wider">
-                {toolTitle}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[#0f172a] uppercase tracking-wider">
+                  {toolTitle}
+                </h3>
+                {isDualModel && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd]">
+                    Dual-Model Studio
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-[#64748b]">
                 {wordCount} words • {charCount} characters • {toolSubtitle || 'Ready to paste into your favorite LLM or image model'}
               </p>
@@ -145,11 +181,44 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
           </div>
         </div>
 
+        {/* Dual Model Tab Switcher (if dual model is active) */}
+        {isDualModel && (
+          <div className="flex items-center gap-2 mb-4 p-1 bg-[#f1f5f9] rounded-xl border border-[#e2e8f0]">
+            <button
+              type="button"
+              onClick={() => setActiveTab('chatgpt')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'chatgpt'
+                  ? 'bg-white text-[#0f172a] shadow-xs border border-[#cbd5e1]'
+                  : 'text-[#64748b] hover:text-[#0f172a]'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+              <span>ChatGPT Prompt</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[#475569]">DALL-E 3 / 4o</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('gemini')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'gemini'
+                  ? 'bg-white text-[#0f172a] shadow-xs border border-[#cbd5e1]'
+                  : 'text-[#64748b] hover:text-[#0f172a]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#0284c7]" />
+              <span>Gemini Prompt</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#e2e8f0] text-[#475569]">Multimodal / Editing</span>
+            </button>
+          </div>
+        )}
+
         {/* Large Editable Text Area */}
         <div className="relative flex-1 flex flex-col">
           <textarea
-            value={prompt}
-            onChange={(e) => onPromptChange(e.target.value)}
+            value={activePrompt}
+            onChange={(e) => handleActivePromptChange(e.target.value)}
             placeholder="Select your options on the left and click 'Generate Prompt'..."
             rows={20}
             className="w-full flex-1 min-h-[420px] p-4 rounded-xl border border-[#cbd5e1] font-mono text-xs sm:text-[13px] leading-relaxed text-[#1e293b] bg-[#fafbfc] focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#0284c7] focus:border-transparent transition-all resize-y select-text shadow-inner"
@@ -168,7 +237,9 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-[#f1f5f9]">
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-[#64748b]">
-              Editable prompt • Click anywhere to customize wording before copying
+              {isDualModel
+                ? `Currently viewing: ${activeTab === 'chatgpt' ? 'ChatGPT (DALL-E 3)' : 'Google Gemini Multimodal'} Prompt • Editable before copying`
+                : 'Editable prompt • Click anywhere to customize wording before copying'}
             </span>
           </div>
 
@@ -176,9 +247,9 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
             <button
               type="button"
               onClick={handleCopy}
-              disabled={!prompt}
+              disabled={!activePrompt}
               className={`px-6 py-2.5 rounded-xl font-semibold text-xs sm:text-sm text-white shadow-sm transition-all flex items-center gap-2 active:scale-[0.98] cursor-pointer ${
-                !prompt
+                !activePrompt
                   ? 'bg-[#94a3b8] cursor-not-allowed opacity-60'
                   : copied
                   ? 'bg-[#0f766e]'
@@ -193,7 +264,7 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  <span>Copy Prompt</span>
+                  <span>Copy {isDualModel ? (activeTab === 'chatgpt' ? 'ChatGPT Prompt' : 'Gemini Prompt') : 'Prompt'}</span>
                 </>
               )}
             </button>
