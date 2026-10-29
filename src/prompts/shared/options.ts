@@ -23,6 +23,13 @@ import {
   VariationLevel,
   VariationToggles,
 } from '../types';
+import {
+  isClothingProduct,
+  getClothingCameraPromptText,
+  getClothingCompositionNote,
+  getClothingSurfaceOverride,
+  resolveClothingPresentation,
+} from '../image/clothing';
 
 // ==========================================
 // 1. Reference & Preservation Headers
@@ -80,6 +87,9 @@ export function getThemePromptText(theme?: PhotographyTheme): string {
 // 3. Camera & Angle (With Bounded Variation)
 // ==========================================
 export function getCameraPromptText(options: PromptOptions): string {
+  if (isClothingProduct(options.productType)) {
+    return getClothingCameraPromptText(options);
+  }
   const angle = options.cameraAngle || 'three-quarter';
   const shot = options.shotType || 'hero-product';
   const perspective = options.perspective || 'natural';
@@ -206,10 +216,12 @@ export function getCompositionPromptText(options: PromptOptions): string {
   if (pres === 'catalog') presentationDesc = 'Pristine e-commerce catalog presentation.';
   if (pres === 'lifestyle-still-life') presentationDesc = 'Lifestyle-inspired tactile still-life presentation.';
 
+  const clothingCompositionNote = getClothingCompositionNote(options);
+
   return `COMPOSITION & FRAMING DIRECTIVES:
 • Composition Style: ${compDesc}
 • Placement: ${positionDesc} ${presentationDesc}
-• Negative Space Balance: Maintain ${space} negative space for calm breathing room and clean visual hierarchy.`;
+• Negative Space Balance: Maintain ${space} negative space for calm breathing room and clean visual hierarchy.${clothingCompositionNote}`;
 }
 
 // ==========================================
@@ -280,7 +292,17 @@ export function getBackgroundPromptText(bg: BackgroundStyle, surface?: SurfaceSt
 // ==========================================
 // 6. Surface System
 // ==========================================
-export function getSurfacePromptText(surface: SurfaceStyle, palette?: ColorPalette): string {
+export function getSurfacePromptText(
+  surface: SurfaceStyle,
+  palette?: ColorPalette,
+  options?: PromptOptions
+): string {
+  if (options) {
+    const surfaceOverride = getClothingSurfaceOverride(options);
+    if (surfaceOverride) {
+      return surfaceOverride;
+    }
+  }
   switch (surface) {
     case 'editorial-tabletop':
       return 'Editorial Tabletop: Resting firmly on a honed pale travertine limestone slab or natural light white oak tabletop, with fine tactile texture, subtle micro-bevels, and soft, natural contact shadows.';
@@ -360,12 +382,26 @@ export function getLightingPromptText(style?: LightingStyle, shadow?: ShadowChar
 // 8. Styling & Props System (With Bounded Variation)
 // ==========================================
 export function getPropsPromptText(options: PromptOptions): string {
-  const level = options.propLevel || (options.props === 'none' ? 'none' : 'minimal');
+  const isClothing = isClothingProduct(options.productType);
+  const resolvedClothingPres = isClothing
+    ? resolveClothingPresentation(
+        options.productType,
+        options.clothingPresentation,
+        options.orientation
+      )
+    : undefined;
+  const forceEditorialProps = resolvedClothingPres === 'editorial-flat-lay-with-props';
+
+  const rawLevel = options.propLevel || (options.props === 'none' ? 'none' : 'minimal');
+  const level =
+    forceEditorialProps && (rawLevel === 'none' || options.props === 'none')
+      ? 'minimal'
+      : rawLevel;
   const family = options.propFamily || 'category-aware';
   const placement = options.propPlacement || 'background-only';
   const productType = options.productType;
 
-  if (level === 'none' || options.props === 'none') {
+  if (!forceEditorialProps && (level === 'none' || options.props === 'none')) {
     return `STYLING & PROPS DIRECTIVE:
 • Prop Level: None. Pure minimalist hero product composition with generous negative space, keeping 100% of viewer attention on the hero object.`;
   }
@@ -401,7 +437,7 @@ export function getPropsPromptText(options: PromptOptions): string {
       if (productType === 'notebook') familyDesc = 'writing & stationery accents (fountain pen, brass paper clip, or deckle-edge paper)';
       else if (productType === 'mug' || productType === 'glass') familyDesc = 'coffee / tea ritual accents (whole roasted coffee beans, cinnamon stick, or linen coaster)';
       else if (productType === 'waterBottle' || productType === 'tumbler') familyDesc = 'clean hydration / desk accents (minimal stone coaster or wooden lid)';
-      else if (productType === 'tshirt' || productType === 'hoodie') familyDesc = 'textile & design ephemera (cloth-bound book or minimal ceramic dish)';
+      else if (isClothingProduct(productType)) familyDesc = 'textile & design ephemera (cloth-bound book or minimal ceramic dish)';
       else familyDesc = 'curated archival & design accents';
       break;
   }
@@ -413,9 +449,13 @@ export function getPropsPromptText(options: PromptOptions): string {
   if (placement === 'asymmetric') placementDesc = 'arranged asymmetrically to balance the product composition';
   if (placement === 'naturally-arranged') placementDesc = 'naturally resting on the surface in an unforced, organic layout';
 
+  const clothingPropGuard = isClothing
+    ? '\n• CLOTHING ARTWORK CLEARANCE: Props must strictly stay in the surrounding space and must NEVER overlap, touch, or obscure the garment\'s printed design.'
+    : '';
+
   return `STYLING & PROPS DIRECTIVE (BOUNDED PROP VARIATION):
 • Prop Level: ${level} (${familyDesc}).
-• Prop Placement: ${placementDesc}.
+• Prop Placement: ${placementDesc}.${clothingPropGuard}
 • PROP VARIATION INSTRUCTION: Introduce a restrained selection of relevant objects chosen naturally for the subject. Allow the specific prop objects, exact count (1–3 items max), scale, rotation, and micro-placement to vary naturally between generations. Props MUST remain secondary to the hero product and must NEVER form a repetitive stock still-life arrangement.`;
 }
 
@@ -488,9 +528,23 @@ export function formatTechnicalSettings(aspectRatio: AspectRatio): string {
 • Aspect Ratio: ${aspectRatio}`;
 }
 
-export function formatNegativeExclusions(extraExclusions: string[] = []): string {
+export function formatNegativeExclusions(
+  extraExclusions: string[] = [],
+  options?: PromptOptions
+): string {
+  const isGhostMannequin =
+    options &&
+    isClothingProduct(options.productType) &&
+    resolveClothingPresentation(
+      options.productType,
+      options.clothingPresentation,
+      options.orientation
+    ) === 'ghost-mannequin';
+
   const defaultExclusions = [
-    'No human models, no visible hands, no people, no phantom mannequins',
+    isGhostMannequin
+      ? 'No human models, no visible hands, no people, no visible mannequin plastic or neck-block hardware'
+      : 'No human models, no visible hands, no people, no phantom mannequins',
     'No artificial watermarks, no copyright text, no promotional badges, no floating graphic overlays',
     'No 3D CGI cartoon look, no oversaturated illustration style, no plastic skinning',
     'No flat digital vector gradients, no graphic fills, no artificial color blocks',
@@ -533,13 +587,13 @@ export function buildMasterPhotographyPrompt(
   const cameraText = getCameraPromptText(options);
   const compositionText = getCompositionPromptText(options);
   const backgroundText = getBackgroundPromptText(options.background, options.surface, options.colorPalette);
-  const surfaceText = getSurfacePromptText(options.surface, options.colorPalette);
+  const surfaceText = getSurfacePromptText(options.surface, options.colorPalette, options);
   const lightingText = getLightingPromptText(options.lightingStyle, options.shadowCharacter);
   const propsText = getPropsPromptText(options);
   const colorText = getColorPromptText(options.colorPalette);
   const variationText = getControlledVariationPromptText(options.variationLevel, options.variationToggles);
   const technicalSettings = formatTechnicalSettings(options.aspectRatio);
-  const negativeExclusions = formatNegativeExclusions(params.productSpecificExclusions || []);
+  const negativeExclusions = formatNegativeExclusions(params.productSpecificExclusions || [], options);
   const additionalInstructions = formatAdditionalInstructions(options.additionalInstructions);
 
   const productFidelityBlock = params.productFidelityDirectives

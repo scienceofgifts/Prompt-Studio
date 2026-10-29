@@ -3,29 +3,26 @@ import { Navbar } from './components/Navbar';
 import { StudioNavigation } from './components/StudioNavigation';
 import { UploadDropzone } from './components/UploadDropzone';
 import { ConfigurationControls } from './components/ConfigurationControls';
+import { GiftGuideHeroControls } from './components/GiftGuideHeroControls';
 import { PromptResultView, ResultActiveChip } from './components/PromptResultView';
-import { GiftGuideControls } from './components/writing/GiftGuideControls';
-import { ArticleControls } from './components/writing/ArticleControls';
 import { ProductCopyControls } from './components/writing/ProductCopyControls';
-import { ProductDataControls } from './components/writing/ProductDataControls';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { StyleLibraryModal } from './components/writing/StyleLibraryModal';
 import { WritingStyleKey } from './prompts/writing/styles';
 import { TEMPLATES_UPDATED_EVENT } from './utils/templateManager';
 import {
   GenerationSettings,
+  GiftGuideHeroPromptOptions,
   StudioToolId,
-  GiftGuideCompositeState,
-  ArticleOptions,
   ProductCopyOptions,
-  ProductDataOptions,
-  buildProductPhotoPrompt,
+  STUDIO_BACKGROUNDS,
+  STUDIO_SURFACES,
+  HERO_PROP_DENSITY_OPTIONS,
   buildChatGPTPhotoPrompt,
   buildGeminiPhotoPrompt,
-  generateGiftGuideSectionPrompt,
-  generateArticlePrompt,
+  buildGiftGuideHeroPrompt,
+  resolveHeroCameraPerspective,
   generateProductCopyPrompt,
-  generateProductDataPrompt,
 } from './types';
 import { Sparkles, Shield, CheckCircle2 } from 'lucide-react';
 
@@ -57,56 +54,13 @@ const DEFAULT_IMAGE_SETTINGS: GenerationSettings = {
   websiteCropSafe: false,
 };
 
-const DEFAULT_GIFT_GUIDE_STATE: GiftGuideCompositeState = {
-  activeSection: 'introduction',
-  guideTitle: '10 Thoughtful Gifts for Amateur Astronomers & Stargazers',
-  recipient: 'Astronomy enthusiasts, stargazers, and science lovers',
-  primaryKeyword: 'astronomy gifts',
-  additionalInstructions: 'Emphasize tactile craftsmanship, heirloom quality, and practical stargazing wonder.',
-
-  // 1. Introduction
-  introAngle: 'hobby-interest',
-  introTone: 'conversational-editorial',
-
-  // 2. Product Copy
-  productName: 'Galilean Moon Phase Ceramic Mug',
-  productType: 'Ceramic Drinkware',
-  productUrl: 'https://scienceofgifts.com/products/galileo-moon-mug',
-  productFeatures: '14 oz high-fired ceramic with matte black glaze\nAccurate 1610 Galileo lunar transit drawings in crisp white enamel\nMicrowave and dishwasher safe',
-  whyItFits: 'Perfect for morning coffee reflections before sunrise observation sessions',
-  productTone: 'conversational-editorial',
-  productLength: 'balanced',
-
-  // 3. More Gifts Section
-  moreGiftsSectionName: 'More Astronomy T-Shirts',
-  moreGiftsProductsIncluded: 'Vintage Apollo 11 schematic tee\nJames Webb deep field graphic tee\nHistorical telescope patent illustration tee',
-  moreGiftsTone: 'conversational-editorial',
-  moreGiftsLength: 'standard',
-
-  // 4. How to Choose
-  howToChooseConsiderations: 'Level of expertise (beginner vs experienced observer)\nDisplay space for charts vs portable field gear\nAvoiding cheap plastic novelty toys\nArchival paper quality for charts and journals',
-  howToChooseTone: 'warm-helpful',
-  howToChooseLength: 'standard',
-
-  // 5. FAQ
-  faqQuestionsToAnswer: 'What if they already own a basic telescope?\nAre celestial star charts functional or purely decorative?\nWhat is a reasonable budget for an astronomy gift?',
-  faqNumberOfQuestions: 4,
-  faqTone: 'warm-helpful',
-
-  // 6. Title & Meta
-  titleMetaSecondaryKeywords: 'stargazing gifts, telescope accessories, gifts for science teachers',
-  titleMetaSearchIntent: 'Commercial investigation & curated gift discovery for science lovers',
-};
-
-const DEFAULT_ARTICLE_OPTIONS: ArticleOptions = {
-  topic: 'The Architecture of Memory: Why Physical Keepsakes Matter in a Digital Age',
-  intendedReader: 'Culture enthusiasts, thoughtful shoppers, and mindful gift-givers',
-  primaryKeyword: 'meaningful gifts',
-  secondaryKeywords: 'tangible keepsakes, intentional gifting, memory objects',
-  searchIntent: 'informational',
-  tone: 'conversational-editorial',
-  articleType: 'explainer',
-  additionalInstructions: 'Include a historical perspective on Victorian keepsake traditions and the tactile psychology of touch.',
+const DEFAULT_GIFT_GUIDE_HERO_OPTIONS: GiftGuideHeroPromptOptions = {
+  products: [],
+  background: 'gradient-wall-neutral-surface',
+  surface: 'editorial-tabletop',
+  propDensity: 'balanced',
+  aspectRatio: '16:9',
+  additionalInstructions: '',
 };
 
 const DEFAULT_PRODUCT_COPY_OPTIONS: ProductCopyOptions = {
@@ -114,22 +68,13 @@ const DEFAULT_PRODUCT_COPY_OPTIONS: ProductCopyOptions = {
   productType: 'Archival Stationery / Hardcover Notebook',
   targetCustomer: 'Writers, stargazers, historians, and mindful note-takers',
   productConcept: 'Inspired by Galileo Galilei’s 1610 Sidereus Nuncius telescopic sketches of lunar craters and Jovian satellites.',
-  keyFeatures: '160 pages of 120 GSM fountain pen-friendly paper\nDebossed metallic gold foil constellation charts\nSilk ribbon page marker & elastic closure band\nLay-flat smyth-sewn binding\nDimensions: 5.5 x 8.25 inches',
+  keyFeatures: '160 pages of 120 GSM fountain pen-friendly paper\nDebossed metallic gold foil constellation charts\nSilk ribbon page marker & elastic closure band\nLay-flat smyth-sewn binding',
+  materials: '120 GSM archival acid-free ivory paper, tactile woven linen bookcloth cover',
+  dimensions: '5.5 x 8.25 inches (A5)',
+  occasion: 'Graduation, observatory visit keepsake, or thoughtful desk gift',
+  personalization: '',
   tone: 'sophisticated-editorial',
   additionalInstructions: 'Highlight the tactile linen bookcloth cover and zero feathering with fountain pen ink.',
-};
-
-const DEFAULT_PRODUCT_DATA_OPTIONS: ProductDataOptions = {
-  productUrl: 'https://scienceofgifts.com/products/galileo-moon-mug',
-  productType: 'Mug',
-  category: 'Astronomy & Stargazing',
-  affiliateType: 'affiliate',
-  priceMode: 'provided',
-  providedPrice: '34.00',
-  editorialPositioning: 'conversation-piece',
-  editorialTone: 'standard',
-  additionalInstructions: 'Focus on high-fired matte black ceramic construction and Galileo Galilei’s original 1610 lunar observations.',
-  hasImage: false,
 };
 
 export default function App() {
@@ -171,35 +116,21 @@ export default function App() {
   };
 
   // ==========================================
-  // Tool 2: Gift Guides State (Modular Section Prompt System)
+  // Tool 2: Gift Guide Hero Image State
   // ==========================================
-  const [giftGuideState, setGiftGuideState] = useState<GiftGuideCompositeState>(DEFAULT_GIFT_GUIDE_STATE);
-  const [giftGuidePrompt, setGiftGuidePrompt] = useState<string>(() =>
-    generateGiftGuideSectionPrompt(DEFAULT_GIFT_GUIDE_STATE)
+  const [heroOptions, setHeroOptions] = useState<GiftGuideHeroPromptOptions>(
+    DEFAULT_GIFT_GUIDE_HERO_OPTIONS
+  );
+  const [heroPrompt, setHeroPrompt] = useState<string>(() =>
+    buildGiftGuideHeroPrompt(DEFAULT_GIFT_GUIDE_HERO_OPTIONS)
   );
 
   // ==========================================
-  // Tool 3: Articles State
-  // ==========================================
-  const [articleOptions, setArticleOptions] = useState<ArticleOptions>(DEFAULT_ARTICLE_OPTIONS);
-  const [articlePrompt, setArticlePrompt] = useState<string>(() =>
-    generateArticlePrompt(DEFAULT_ARTICLE_OPTIONS)
-  );
-
-  // ==========================================
-  // Tool 4: Standalone Product Copy State
+  // Tool 3: Product Copy State
   // ==========================================
   const [productCopyOptions, setProductCopyOptions] = useState<ProductCopyOptions>(DEFAULT_PRODUCT_COPY_OPTIONS);
   const [productCopyPrompt, setProductCopyPrompt] = useState<string>(() =>
     generateProductCopyPrompt(DEFAULT_PRODUCT_COPY_OPTIONS)
-  );
-
-  // ==========================================
-  // Tool 5: Catalog Product Data State
-  // ==========================================
-  const [productDataOptions, setProductDataOptions] = useState<ProductDataOptions>(DEFAULT_PRODUCT_DATA_OPTIONS);
-  const [productDataPrompt, setProductDataPrompt] = useState<string>(() =>
-    generateProductDataPrompt(DEFAULT_PRODUCT_DATA_OPTIONS)
   );
 
   // ==========================================
@@ -214,28 +145,15 @@ export default function App() {
   };
 
   const handleStylesUpdated = () => {
-    // Regenerate active writing prompts using updated style rules
-    setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
-    setArticlePrompt(generateArticlePrompt(articleOptions));
     setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
   };
 
   const handleTemplatesUpdated = () => {
-    // Regenerate all prompts using updated customizable templates
     updatePhotoPrompts(imageSettings, Boolean(uploadedImage), imageInfo?.name);
-    setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
-    setArticlePrompt(generateArticlePrompt(articleOptions));
+    setHeroPrompt(buildGiftGuideHeroPrompt(heroOptions));
     setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
-    setProductDataPrompt(
-      generateProductDataPrompt({
-        ...productDataOptions,
-        hasImage: Boolean(uploadedImage),
-        imageName: imageInfo?.name,
-      })
-    );
   };
 
-  // Listen to custom style and template update events dispatched across the app
   useEffect(() => {
     const handleStyleStorageUpdate = () => {
       handleStylesUpdated();
@@ -251,7 +169,7 @@ export default function App() {
       window.removeEventListener('scienceOfGifts_styles_updated', handleStyleStorageUpdate);
       window.removeEventListener(TEMPLATES_UPDATED_EVENT, handleTemplateStorageUpdate);
     };
-  }, [giftGuideState, articleOptions, productCopyOptions, productDataOptions, imageSettings, uploadedImage, imageInfo]);
+  }, [productCopyOptions, imageSettings, heroOptions, uploadedImage, imageInfo]);
 
   // ==========================================
   // Image Handlers
@@ -263,28 +181,17 @@ export default function App() {
     setUploadedImage(dataUrl);
     setImageInfo(info);
     updatePhotoPrompts(imageSettings, true, info.name);
-
-    const updatedDataOptions: ProductDataOptions = {
-      ...productDataOptions,
-      hasImage: true,
-      imageName: info.name,
-    };
-    setProductDataOptions(updatedDataOptions);
-    setProductDataPrompt(generateProductDataPrompt(updatedDataOptions));
   };
 
   const handleClearImage = () => {
     setUploadedImage(null);
     setImageInfo(null);
     updatePhotoPrompts(imageSettings, false);
+  };
 
-    const updatedDataOptions: ProductDataOptions = {
-      ...productDataOptions,
-      hasImage: false,
-      imageName: undefined,
-    };
-    setProductDataOptions(updatedDataOptions);
-    setProductDataPrompt(generateProductDataPrompt(updatedDataOptions));
+  const handleImageSettingsChange = (newSettings: GenerationSettings) => {
+    setImageSettings(newSettings);
+    updatePhotoPrompts(newSettings, Boolean(uploadedImage), imageInfo?.name);
   };
 
   const handleApplySampleSettings = (sampleSettings: Partial<GenerationSettings>) => {
@@ -301,45 +208,22 @@ export default function App() {
   };
 
   // ==========================================
-  // Writing Handlers
+  // Gift Guide Hero Image Handlers
   // ==========================================
-  const handleGiftGuideStateChange = (newState: GiftGuideCompositeState) => {
-    setGiftGuideState(newState);
-    // If the section changed, automatically update the preview prompt
-    if (newState.activeSection !== giftGuideState.activeSection) {
-      setGiftGuidePrompt(generateGiftGuideSectionPrompt(newState));
-    }
+  const handleHeroOptionsChange = (newOptions: GiftGuideHeroPromptOptions) => {
+    setHeroOptions(newOptions);
+    setHeroPrompt(buildGiftGuideHeroPrompt(newOptions));
   };
 
-  const handleGenerateGiftGuidePrompt = () => {
-    setGiftGuidePrompt(generateGiftGuideSectionPrompt(giftGuideState));
+  const handleGenerateHeroPrompt = () => {
+    setHeroPrompt(buildGiftGuideHeroPrompt(heroOptions));
   };
 
-  const handleGenerateArticlePrompt = () => {
-    setArticlePrompt(generateArticlePrompt(articleOptions));
-  };
-
+  // ==========================================
+  // Product Copy Handlers
+  // ==========================================
   const handleGenerateProductCopyPrompt = () => {
     setProductCopyPrompt(generateProductCopyPrompt(productCopyOptions));
-  };
-
-  const handleProductDataOptionsChange = (newOpts: ProductDataOptions) => {
-    const optsWithImage = {
-      ...newOpts,
-      hasImage: Boolean(uploadedImage),
-      imageName: imageInfo?.name,
-    };
-    setProductDataOptions(optsWithImage);
-    setProductDataPrompt(generateProductDataPrompt(optsWithImage));
-  };
-
-  const handleGenerateProductDataPrompt = () => {
-    const optsWithImage = {
-      ...productDataOptions,
-      hasImage: Boolean(uploadedImage),
-      imageName: imageInfo?.name,
-    };
-    setProductDataPrompt(generateProductDataPrompt(optsWithImage));
   };
 
   // Active prompt configuration for right column view
@@ -351,61 +235,44 @@ export default function App() {
   let currentToolSubtitle = 'Ready to paste into Gemini / Midjourney / Flux';
   let currentActiveChips: ResultActiveChip[] = [];
 
-  if (activeTool === 'gift-guide') {
-    currentPrompt = giftGuidePrompt;
-    onCurrentPromptChange = setGiftGuidePrompt;
-    onCurrentClear = () => setGiftGuidePrompt('');
-    onCurrentRegenerate = handleGenerateGiftGuidePrompt;
+  if (activeTool === 'gift-guide-hero') {
+    currentPrompt = heroPrompt;
+    onCurrentPromptChange = setHeroPrompt;
+    onCurrentClear = () => setHeroPrompt('');
+    onCurrentRegenerate = handleGenerateHeroPrompt;
+    currentToolTitle = 'Gift Guide Hero Image Prompt';
+    currentToolSubtitle = 'Multi-product editorial hero composition • Ready for Gemini / ChatGPT / Midjourney';
 
-    const sectionTitles: Record<string, string> = {
-      introduction: 'Guide Introduction Prompt',
-      'product-copy': 'Guide Product Entry Prompt',
-      'more-gifts': '"More Gifts" Section Prompt',
-      'how-to-choose': '"How to Choose" Advice Prompt',
-      faq: 'Guide FAQ Section Prompt',
-      'title-meta': 'Guide Title & Meta Prompt',
-    };
-
-    currentToolTitle = sectionTitles[giftGuideState.activeSection] || 'Gift Guide Section Prompt';
-    currentToolSubtitle = 'Ready to paste into Claude / ChatGPT / Gemini';
+    const bgLabel =
+      STUDIO_BACKGROUNDS.find((b) => b.id === heroOptions.background)?.label ||
+      heroOptions.background;
+    const surfaceLabel =
+      STUDIO_SURFACES.find((s) => s.id === heroOptions.surface)?.label ||
+      heroOptions.surface;
+    const propDensityLabel =
+      HERO_PROP_DENSITY_OPTIONS.find((p) => p.id === heroOptions.propDensity)?.label ||
+      heroOptions.propDensity;
+    const cameraResolution = resolveHeroCameraPerspective(heroOptions);
 
     currentActiveChips = [
-      { label: 'Section', value: giftGuideState.activeSection.replace(/-/g, ' ') },
-      { label: 'Guide', value: giftGuideState.guideTitle || 'Gift Guide' },
-      { label: 'Recipient', value: giftGuideState.recipient || 'Curious Minds' },
-    ];
-
-    const sectionStyles: Record<string, string> = {
-      introduction: 'Global + Editorial',
-      'product-copy': 'Global + Copy',
-      'more-gifts': 'Global + Editorial + Copy',
-      'how-to-choose': 'Global + Editorial',
-      faq: 'Global + Editorial',
-      'title-meta': 'SEO Directives',
-    };
-    currentActiveChips.push({
-      label: 'Style Rules',
-      value: sectionStyles[giftGuideState.activeSection] || 'Global',
-    });
-
-    if (giftGuideState.activeSection === 'product-copy') {
-      currentActiveChips.push({ label: 'Item', value: giftGuideState.productName || 'Featured Product' });
-    } else if (giftGuideState.activeSection === 'more-gifts') {
-      currentActiveChips.push({ label: 'Category', value: giftGuideState.moreGiftsSectionName || 'Sub-category' });
-    }
-  } else if (activeTool === 'article') {
-    currentPrompt = articlePrompt;
-    onCurrentPromptChange = setArticlePrompt;
-    onCurrentClear = () => setArticlePrompt('');
-    onCurrentRegenerate = handleGenerateArticlePrompt;
-    currentToolTitle = 'Editorial Article Prompt';
-    currentToolSubtitle = 'Ready to paste into Claude / ChatGPT / Gemini';
-    currentActiveChips = [
-      { label: 'Type', value: articleOptions.articleType },
-      { label: 'Intent', value: articleOptions.searchIntent.replace(/-/g, ' ') },
-      { label: 'Tone', value: articleOptions.tone.replace(/-/g, ' ') },
-      { label: 'Style Rules', value: 'Global + Editorial' },
-      { label: 'Keyword', value: articleOptions.primaryKeyword || 'Topical Authority' },
+      {
+        label: 'Products',
+        value:
+          heroOptions.products.length > 0
+            ? `${heroOptions.products.length} reference${heroOptions.products.length === 1 ? '' : 's'}`
+            : 'Template mode',
+      },
+      { label: 'Aspect Ratio', value: heroOptions.aspectRatio },
+      { label: 'Prop Density', value: propDensityLabel },
+      { label: 'Background', value: bgLabel },
+      { label: 'Surface', value: surfaceLabel },
+      {
+        label: 'Perspective',
+        value:
+          cameraResolution.mode === 'overhead-flat'
+            ? '80°–90° Overhead'
+            : '35°–45° Three-Quarter',
+      },
     ];
   } else if (activeTool === 'product-copy') {
     currentPrompt = productCopyPrompt;
@@ -416,28 +283,9 @@ export default function App() {
     currentToolSubtitle = 'Ready to paste into Claude / ChatGPT / Gemini';
     currentActiveChips = [
       { label: 'Product', value: productCopyOptions.productName || 'Catalog Product' },
+      { label: 'Type', value: productCopyOptions.productType || 'Custom Type' },
       { label: 'Tone', value: productCopyOptions.tone.replace(/-/g, ' ') },
       { label: 'Style Rules', value: 'Global + Copy' },
-    ];
-  } else if (activeTool === 'product-data') {
-    currentPrompt = productDataPrompt;
-    onCurrentPromptChange = setProductDataPrompt;
-    onCurrentClear = () => setProductDataPrompt('');
-    onCurrentRegenerate = handleGenerateProductDataPrompt;
-    currentToolTitle = 'Product Data Catalog Record Prompt';
-    currentToolSubtitle = 'Ready to paste into ChatGPT / Claude';
-    currentActiveChips = [
-      { label: 'Schema', value: 'Science of Gifts Product YAML' },
-      { label: 'Type', value: productDataOptions.productType },
-      { label: 'Category', value: productDataOptions.category },
-      { label: 'Link Type', value: productDataOptions.affiliateType },
-      {
-        label: 'Price',
-        value:
-          productDataOptions.priceMode === 'provided'
-            ? `$${productDataOptions.providedPrice || '0.00'}`
-            : 'Extract from URL',
-      },
     ];
   }
 
@@ -446,7 +294,7 @@ export default function App() {
       {/* Header */}
       <Navbar />
 
-      {/* Main Category & Tool Navigation (Image: Product Photography | Writing: Gift Guides, Articles, Product Copy) */}
+      {/* Main Category & Tool Navigation (Image: Product Photography, Gift Guide Hero Image | Writing: Product Copy) */}
       <StudioNavigation
         activeTool={activeTool}
         onSelectTool={setActiveTool}
@@ -467,14 +315,10 @@ export default function App() {
               <p className="mt-3 text-sm sm:text-base text-[#64748b] leading-relaxed">
                 {activeTool === 'product-photography' &&
                   'Construct production-grade photography prompts optimized for ChatGPT (DALL-E 3) and Google Gemini Multimodal Studio with strict product fidelity.'}
-                {activeTool === 'gift-guide' &&
-                  'Generate focused, modular prompts for individual sections of your self-authored gift guides: introduction, single-product entries, category spotlights, buyer advice, FAQs, and metadata.'}
-                {activeTool === 'article' &&
-                  'Produce thoughtful long-form magazine essays, explainer guides, and etiquette articles without robotic SEO filler.'}
+                {activeTool === 'gift-guide-hero' &&
+                  'Create cohesive, editorial multi-product hero image prompts for gift-guide articles—combining your actual product reference images with adaptive arrangement, background, and prop density.'}
                 {activeTool === 'product-copy' &&
-                  'Craft evocative, high-converting product page briefs celebrating craftsmanship, tactile materials, and honest storytelling.'}
-                {activeTool === 'product-data' &&
-                  'Generate factually accurate, structured Science of Gifts YAML catalog records and rich metadata for any product.'}
+                  'Craft evocative, high-converting product page briefs celebrating craftsmanship, tactile materials, and honest storytelling—accelerated by reusable product profiles.'}
               </p>
 
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs text-[#475569]">
@@ -524,7 +368,7 @@ export default function App() {
                       </h2>
                       <ConfigurationControls
                         settings={imageSettings}
-                        onChange={setImageSettings}
+                        onChange={handleImageSettingsChange}
                         onGenerate={handleGenerateImagePrompt}
                         hasImage={Boolean(uploadedImage)}
                       />
@@ -532,46 +376,22 @@ export default function App() {
                   </>
                 )}
 
-                {/* 2. WRITING: GIFT GUIDES (MODULAR SECTIONS) */}
-                {activeTool === 'gift-guide' && (
-                  <GiftGuideControls
-                    state={giftGuideState}
-                    onChange={handleGiftGuideStateChange}
-                    onGenerate={handleGenerateGiftGuidePrompt}
-                    onOpenStyleLibrary={handleOpenStyleLibrary}
+                {/* 2. GIFT GUIDE HERO IMAGE */}
+                {activeTool === 'gift-guide-hero' && (
+                  <GiftGuideHeroControls
+                    options={heroOptions}
+                    onChange={handleHeroOptionsChange}
+                    onGenerate={handleGenerateHeroPrompt}
                   />
                 )}
 
-                {/* 3. WRITING: ARTICLES */}
-                {activeTool === 'article' && (
-                  <ArticleControls
-                    options={articleOptions}
-                    onChange={setArticleOptions}
-                    onGenerate={handleGenerateArticlePrompt}
-                    onOpenStyleLibrary={() => handleOpenStyleLibrary('editorial')}
-                  />
-                )}
-
-                {/* 4. WRITING: PRODUCT COPY (STANDALONE) */}
+                {/* 3. WRITING: PRODUCT COPY */}
                 {activeTool === 'product-copy' && (
                   <ProductCopyControls
                     options={productCopyOptions}
                     onChange={setProductCopyOptions}
                     onGenerate={handleGenerateProductCopyPrompt}
                     onOpenStyleLibrary={() => handleOpenStyleLibrary('copy')}
-                  />
-                )}
-
-                {/* 5. WRITING: PRODUCT DATA (CATALOG RECORD) */}
-                {activeTool === 'product-data' && (
-                  <ProductDataControls
-                    options={productDataOptions}
-                    onChange={handleProductDataOptionsChange}
-                    onGenerate={handleGenerateProductDataPrompt}
-                    uploadedImage={uploadedImage}
-                    imageInfo={imageInfo}
-                    onImageSelected={handleImageSelected}
-                    onClearImage={handleClearImage}
                   />
                 )}
               </div>

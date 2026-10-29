@@ -8,7 +8,12 @@ import {
   CheckCircle2,
   Sparkles,
 } from 'lucide-react';
-import { GenerationSettings } from '../types';
+import {
+  CLOTHING_PRESENTATION_PRESETS,
+  GenerationSettings,
+  isClothingProduct,
+  resolveClothingPresentation,
+} from '../types';
 
 export interface ResultActiveChip {
   label?: string;
@@ -281,9 +286,23 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
               <span className="px-2 py-0.5 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] capitalize">
                 {settings.productType}
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] capitalize">
-                {settings.orientation.replace('-', ' ')}
-              </span>
+              {isClothingProduct(settings.productType) ? (
+                <span className="px-2 py-0.5 rounded-md bg-[#f0f9ff] text-[#0369a1] border border-[#bae6fd] font-medium">
+                  {
+                    CLOTHING_PRESENTATION_PRESETS[
+                      resolveClothingPresentation(
+                        settings.productType,
+                        settings.clothingPresentation,
+                        settings.orientation
+                      )
+                    ].label
+                  }
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] capitalize">
+                  {settings.orientation.replace('-', ' ')}
+                </span>
+              )}
               <span className="px-2 py-0.5 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] capitalize">
                 {settings.background.replace(/-/g, ' ')}
               </span>

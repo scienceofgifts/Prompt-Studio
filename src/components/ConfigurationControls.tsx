@@ -19,6 +19,7 @@ import {
   GenerationSettings,
   ProductType,
   ProductOrientation,
+  ClothingPresentation,
   BackgroundStyle,
   SurfaceStyle,
   PropsStyle,
@@ -41,7 +42,21 @@ import {
   ColorPalette,
   VariationLevel,
   imagePromptTemplates,
+  CLOTHING_PRESENTATION_GROUPS,
+  CLOTHING_PRESENTATION_PRESETS,
+  getDefaultPresentationForOrientation,
+  isClothingProduct,
+  isPresetSupportedForGarment,
+  resolveClothingCamera,
+  resolveClothingPresentation,
+  STUDIO_ASPECT_RATIOS,
+  STUDIO_BACKGROUNDS,
+  STUDIO_SURFACES,
 } from '../types';
+import {
+  getProductTypes,
+  PRODUCT_TYPES_UPDATED_EVENT,
+} from '../utils/productProfileManager';
 
 interface ConfigurationControlsProps {
   settings: GenerationSettings;
@@ -77,10 +92,70 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
     });
   };
 
+  const handleSelectProductType = (newType: ProductType) => {
+    if (isClothingProduct(newType)) {
+      const resolvedPres = resolveClothingPresentation(
+        newType,
+        settings.clothingPresentation,
+        settings.orientation
+      );
+      const preset = CLOTHING_PRESENTATION_PRESETS[resolvedPres];
+      onChange({
+        ...settings,
+        productType: newType,
+        clothingPresentation: resolvedPres,
+        orientation: preset.baseOrientation,
+      });
+    } else {
+      updateSetting('productType', newType);
+    }
+  };
+
+  const handleSelectOrientation = (newOrientation: ProductOrientation) => {
+    if (isClothingProduct(settings.productType)) {
+      const currentPres = resolveClothingPresentation(
+        settings.productType,
+        settings.clothingPresentation,
+        settings.orientation
+      );
+      const currentMeta = CLOTHING_PRESENTATION_PRESETS[currentPres];
+      const nextPres =
+        currentMeta.baseOrientation === newOrientation
+          ? currentPres
+          : getDefaultPresentationForOrientation(settings.productType, newOrientation);
+      onChange({
+        ...settings,
+        orientation: newOrientation,
+        clothingPresentation: nextPres,
+      });
+    } else {
+      updateSetting('orientation', newOrientation);
+    }
+  };
+
+  const handleSelectClothingPresentation = (newPres: ClothingPresentation) => {
+    const resolvedPres = resolveClothingPresentation(
+      settings.productType,
+      newPres,
+      settings.orientation
+    );
+    const preset = CLOTHING_PRESENTATION_PRESETS[resolvedPres];
+    onChange({
+      ...settings,
+      clothingPresentation: resolvedPres,
+      orientation: preset.baseOrientation,
+    });
+  };
+
+  const isClothing = isClothingProduct(settings.productType);
+  const activeClothingCamera = isClothing ? resolveClothingCamera(settings) : null;
+  const activeClothingPreset = activeClothingCamera?.preset || null;
+
   const handleResetDefaults = () => {
     onChange({
       productType: 'notebook',
       orientation: 'flat-lay',
+      clothingPresentation: undefined,
       background: 'gradient-wall-neutral-surface',
       surface: 'editorial-tabletop',
       props: 'subtle-historical',
@@ -112,6 +187,7 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
   const productTypes: { id: ProductType; label: string; icon: string }[] = [
     { id: 'mug', label: 'Mug', icon: '☕' },
     { id: 'tshirt', label: 'T-shirt', icon: '👕' },
+    { id: 'sweatshirt', label: 'Sweatshirt', icon: '🧶' },
     { id: 'hoodie', label: 'Hoodie', icon: '🧥' },
     { id: 'notebook', label: 'Notebook', icon: '📓' },
     { id: 'glass', label: 'Glass', icon: '🥛' },
@@ -187,66 +263,9 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
     { id: 'natural-adaptive', label: 'Adaptive Natural Space' },
   ];
 
-  const backgrounds: { id: BackgroundStyle; label: string; desc: string; swatchClass: string }[] = [
-    {
-      id: 'science-gradient',
-      label: 'Science of Gifts Gradient',
-      desc: 'Soft blue-to-mint gradient studio backdrop with photographic transition',
-      swatchClass: 'bg-gradient-to-br from-[#99BFF9] via-[#C3F3DF] to-[#E0F2FE] border-[#93c5fd]',
-    },
-    {
-      id: 'gradient-wall-neutral-surface',
-      label: 'Gradient Wall + Neutral Surface',
-      desc: 'Blue/mint backwall with tangible neutral tabletop below',
-      swatchClass: 'bg-gradient-to-b from-[#99BFF9] via-[#C3F3DF] to-[#e2e8f0] border-[#93c5fd]',
-    },
-    {
-      id: 'blue-wall-neutral-surface',
-      label: 'Blue Wall + Neutral Surface',
-      desc: 'Soft muted powder blue backwall with neutral stone tabletop',
-      swatchClass: 'bg-gradient-to-b from-[#bae6fd] to-[#e2e8f0] border-[#7dd3fc]',
-    },
-    {
-      id: 'mint-wall-neutral-surface',
-      label: 'Mint Wall + Neutral Surface',
-      desc: 'Soft seafoam mint backwall with neutral physical surface',
-      swatchClass: 'bg-gradient-to-b from-[#a7f3d0] to-[#e2e8f0] border-[#6ee7b7]',
-    },
-    {
-      id: 'neutral-editorial',
-      label: 'Neutral Editorial',
-      desc: 'Light neutral studio environment with clean off-white tones',
-      swatchClass: 'bg-gradient-to-br from-[#f8fafc] to-[#e2e8f0] border-[#cbd5e1]',
-    },
-    {
-      id: 'warm-ivory',
-      label: 'Warm Ivory Studio',
-      desc: 'Pale alabaster & warm ivory matte background',
-      swatchClass: 'bg-gradient-to-br from-[#fffdfa] to-[#fef3c7] border-[#fde68a]',
-    },
-    {
-      id: 'branded-editorial-environment',
-      label: 'Branded Architectural Environment',
-      desc: 'Blue & mint palette woven subtly into real 3D studio depth',
-      swatchClass: 'bg-gradient-to-br from-[#e0f2fe] via-[#f1f5f9] to-[#d1fae5] border-[#94a3b8]',
-    },
-    {
-      id: 'dark-editorial',
-      label: 'Dark Editorial Studio',
-      desc: 'Sophisticated darker studio with sculpted key lighting',
-      swatchClass: 'bg-gradient-to-br from-[#334155] to-[#0f172a] border-[#1e293b]',
-    },
-  ];
+  const backgrounds = STUDIO_BACKGROUNDS;
 
-  const surfaces: { id: SurfaceStyle; label: string; desc: string }[] = [
-    { id: 'editorial-tabletop', label: 'Editorial Tabletop', desc: 'Honed travertine slab or pale white oak' },
-    { id: 'light-stone', label: 'Light Limestone', desc: 'Pale honed limestone with fine grain' },
-    { id: 'light-wood', label: 'Light White Oak', desc: 'Smooth pale matte white oak wood' },
-    { id: 'dark-matte', label: 'Dark Slate Surface', desc: 'Deep charcoal slate or dark stone' },
-    { id: 'soft-fabric', label: 'Raw Draped Linen', desc: 'Heavyweight unbleached draped linen' },
-    { id: 'paper-archival', label: 'Archival Cotton Paper', desc: '300 GSM cotton rag paper tooth' },
-    { id: 'no-visible-surface', label: 'Floating Space', desc: 'Floating seamlessly in negative space' },
-  ];
+  const surfaces = STUDIO_SURFACES;
 
   const colorPalettes: { id: ColorPalette; label: string; swatchClass: string }[] = [
     { id: 'science-blue-mint', label: 'Science of Gifts Blue + Mint', swatchClass: 'from-[#99BFF9] to-[#C3F3DF]' },
@@ -309,12 +328,7 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
     { id: 'strong', label: 'Strong', desc: 'Dynamic shifts in composition, viewpoint & prop styling' },
   ];
 
-  const aspectRatios: { id: AspectRatio; label: string; ratioDesc: string; shapeClass: string }[] = [
-    { id: '1:1', label: '1:1', ratioDesc: 'Square / E-commerce', shapeClass: 'w-5 h-5' },
-    { id: '4:5', label: '4:5', ratioDesc: 'Editorial Portrait', shapeClass: 'w-4 h-5' },
-    { id: '3:2', label: '3:2', ratioDesc: 'Classic Catalog', shapeClass: 'w-6 h-4' },
-    { id: '16:9', label: '16:9', ratioDesc: 'Widescreen Banner', shapeClass: 'w-7 h-4' },
-  ];
+  const aspectRatios = STUDIO_ASPECT_RATIOS;
 
   return (
     <div className="space-y-4 bg-white rounded-2xl border border-[#e2e8f0] p-6 shadow-sm">
@@ -390,15 +404,15 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
               <span className="text-[11px] text-[#64748b]">Select product category</span>
             </label>
 
-            <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {productTypes.map((item) => {
                 const isSelected = settings.productType === item.id;
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => updateSetting('productType', item.id)}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
+                    onClick={() => handleSelectProductType(item.id)}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
                         ? 'border-[#0284c7] bg-[#f0f9ff] text-[#0369a1] font-semibold ring-1 ring-[#0284c7]'
                         : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white text-[#334155]'
@@ -415,11 +429,17 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
               <div className="mt-3">
                 <input
                   type="text"
-                  placeholder="Specify custom product: e.g. Brass bookmark, enamel pin, canvas tote..."
+                  list="studio-shared-product-types"
+                  placeholder="Specify custom product: e.g. Laptop Sleeve, Mouse Pad, Brass bookmark..."
                   value={settings.customProductType || ''}
                   onChange={(e) => updateSetting('customProductType', e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-[#cbd5e1] focus:outline-hidden focus:ring-2 focus:ring-[#0284c7]"
                 />
+                <datalist id="studio-shared-product-types">
+                  {getProductTypes().map((t) => (
+                    <option key={t} value={t} />
+                  ))}
+                </datalist>
               </div>
             )}
 
@@ -446,8 +466,8 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => updateSetting('orientation', item.id)}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                    onClick={() => handleSelectOrientation(item.id)}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
                         ? 'border-[#0284c7] bg-[#f0f9ff] ring-1 ring-[#0284c7]'
                         : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
@@ -464,6 +484,69 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
               })}
             </div>
           </div>
+
+          {/* Garment Presentation Preset Selector (Clothing Only) */}
+          {isClothing && activeClothingPreset && activeClothingCamera && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  htmlFor="clothing-presentation-select"
+                  className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Layers className="w-3.5 h-3.5 text-[#0284c7]" />
+                  Garment Presentation Preset
+                </label>
+                <span className="text-[11px] text-[#64748b]">
+                  Garment-aware arrangement ({imagePromptTemplates[settings.productType]?.displayName})
+                </span>
+              </div>
+
+              <select
+                id="clothing-presentation-select"
+                value={activeClothingPreset.id}
+                onChange={(e) =>
+                  handleSelectClothingPresentation(e.target.value as ClothingPresentation)
+                }
+                className="w-full px-3 py-2 text-xs rounded-xl border border-[#cbd5e1] focus:outline-hidden focus:ring-2 focus:ring-[#0284c7] bg-white text-[#1e293b] font-medium"
+              >
+                {CLOTHING_PRESENTATION_GROUPS.map((group) => (
+                  <optgroup key={group.id} label={group.label}>
+                    {group.presets.map((preset) => {
+                      const supported = isPresetSupportedForGarment(
+                        preset.id,
+                        settings.productType
+                      );
+                      const suffix = !supported
+                        ? preset.id === 'hoodie-hood-displayed'
+                          ? ' (Hoodie only)'
+                          : ' (T-shirt & Sweatshirt)'
+                        : '';
+                      return (
+                        <option key={preset.id} value={preset.id} disabled={!supported}>
+                          {preset.label}
+                          {suffix}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ))}
+              </select>
+
+              <div className="mt-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] space-y-1 text-[11px] text-[#475569]">
+                <p className="font-medium text-[#1e293b]">{activeClothingPreset.shortDescription}</p>
+                <p className="text-[10px] text-[#64748b]">
+                  {activeClothingCamera.cameraConstraintNote}
+                  {activeClothingCamera.wasCameraOverridden && (
+                    <span className="text-[#0369a1] font-medium">
+                      {' '}
+                      • Overrides selected camera angle ({settings.cameraAngle}) with{' '}
+                      {activeClothingCamera.effectiveCameraAngle}.
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* High-Level Theme / Art Direction */}
           <div>
@@ -540,15 +623,20 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {cameraAngles.map((ca) => {
                 const isSelected = (settings.cameraAngle || 'three-quarter') === ca.id;
+                const isCompatibleWithClothing =
+                  !activeClothingPreset ||
+                  activeClothingPreset.compatibleCameraAngles.includes(ca.id);
                 return (
                   <button
                     key={ca.id}
                     type="button"
                     onClick={() => updateSetting('cameraAngle', ca.id)}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
                         ? 'border-[#0284c7] bg-[#f0f9ff] text-[#0369a1] font-bold ring-1 ring-[#0284c7]'
-                        : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white text-[#334155]'
+                        : isCompatibleWithClothing
+                        ? 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white text-[#334155]'
+                        : 'border-[#e2e8f0] bg-[#f8fafc] text-[#94a3b8]'
                     }`}
                   >
                     <span className="text-xs">{ca.label}</span>
@@ -556,6 +644,23 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
                 );
               })}
             </div>
+            {isClothing && activeClothingCamera && activeClothingPreset && (
+              <div className="mt-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] flex items-start gap-2 text-[11px] text-[#475569]">
+                <Info className="w-3.5 h-3.5 text-[#0284c7] mt-0.5 flex-shrink-0" />
+                <span>
+                  <strong>{activeClothingPreset.label}:</strong>{' '}
+                  {activeClothingCamera.cameraConstraintNote}
+                  {activeClothingCamera.wasCameraOverridden && (
+                    <span className="text-[#0369a1]">
+                      {' '}
+                      Because <strong>{settings.cameraAngle}</strong> conflicts with this garment
+                      arrangement, the prompt uses{' '}
+                      <strong>{activeClothingCamera.effectiveCameraAngle}</strong>.
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Depth of Field */}

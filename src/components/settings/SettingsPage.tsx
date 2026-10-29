@@ -26,10 +26,7 @@ import { GeneratorId } from '../../prompts/templates/types';
 import {
   GENERATOR_TEMPLATES_CONFIG,
   DEFAULT_PHOTOGRAPHY_SECTIONS,
-  DEFAULT_GIFT_GUIDES_SECTIONS,
-  DEFAULT_ARTICLES_SECTIONS,
   DEFAULT_PRODUCT_COPY_SECTIONS,
-  DEFAULT_PRODUCT_DATA_SECTIONS,
 } from '../../prompts/templates/defaults';
 import {
   getTemplateSection,
@@ -58,8 +55,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [filterCustomizedOnly, setFilterCustomizedOnly] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [savedSectionKey, setSavedSectionKey] = useState<string | null>(null);
-  const [previewModalOpen, setPreviewModalOpen] = useState<boolean>(false);
-  const [previewSectionKey, setPreviewSectionKey] = useState<string | null>(null);
 
   const generatorList: { id: GeneratorId; label: string; icon: React.ReactNode; count: number }[] = [
     {
@@ -69,28 +64,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       count: Object.keys(DEFAULT_PHOTOGRAPHY_SECTIONS).length,
     },
     {
-      id: 'giftGuides',
-      label: 'Gift Guides',
-      icon: <Gift className="w-4 h-4" />,
-      count: Object.keys(DEFAULT_GIFT_GUIDES_SECTIONS).length,
-    },
-    {
-      id: 'articles',
-      label: 'Articles',
-      icon: <FileText className="w-4 h-4" />,
-      count: Object.keys(DEFAULT_ARTICLES_SECTIONS).length,
-    },
-    {
       id: 'productCopy',
       label: 'Product Copy',
       icon: <ShoppingBag className="w-4 h-4" />,
       count: Object.keys(DEFAULT_PRODUCT_COPY_SECTIONS).length,
-    },
-    {
-      id: 'productData',
-      label: 'Product Data',
-      icon: <Database className="w-4 h-4" />,
-      count: Object.keys(DEFAULT_PRODUCT_DATA_SECTIONS).length,
     },
   ];
 
@@ -155,19 +132,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   const handleResetGenerator = () => {
-    if (window.confirm(`Are you sure you want to reset all templates for ${GENERATOR_TEMPLATES_CONFIG[activeGenerator].label} back to built-in defaults?`)) {
-      resetGeneratorTemplates(activeGenerator);
-      loadGeneratorValues(activeGenerator);
-      showStatus(`All templates for ${GENERATOR_TEMPLATES_CONFIG[activeGenerator].label} restored to default.`, 'info');
-    }
+    resetGeneratorTemplates(activeGenerator);
+    loadGeneratorValues(activeGenerator);
+    showStatus(`All templates for ${GENERATOR_TEMPLATES_CONFIG[activeGenerator].label} restored to default.`, 'info');
   };
 
   const handleResetAll = () => {
-    if (window.confirm('Are you sure you want to reset ALL templates across all 5 generators to built-in defaults?')) {
-      resetAllTemplates();
-      loadGeneratorValues(activeGenerator);
-      showStatus('All prompt templates restored to built-in defaults.', 'info');
-    }
+    resetAllTemplates();
+    loadGeneratorValues(activeGenerator);
+    showStatus('All prompt templates restored to built-in defaults.', 'info');
   };
 
   const handleExportBackup = () => {
@@ -337,7 +310,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <h2 className="text-xs font-bold uppercase tracking-wider text-[#64748b] px-3 py-2 flex items-center justify-between">
               <span>Prompt Templates</span>
               <span className="text-[10px] lowercase font-normal bg-[#f1f5f9] px-2 py-0.5 rounded-full text-[#475569]">
-                5 generators
+                2 generators
               </span>
             </h2>
 

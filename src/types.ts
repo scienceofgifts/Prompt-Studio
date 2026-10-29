@@ -1,6 +1,8 @@
 import {
   ProductType,
   ProductOrientation,
+  ClothingPresentation,
+  ClothingPresentationGroup,
   BackgroundStyle,
   SurfaceStyle,
   PropsStyle,
@@ -27,6 +29,7 @@ import {
 } from './prompts/types';
 
 export * from './prompts/types';
+export * from './prompts/shared/studioOptions';
 export * from './prompts/image';
 export * from './prompts/writing';
 
@@ -34,6 +37,7 @@ export interface GenerationSettings {
   productType: ProductType;
   customProductType?: string;
   orientation: ProductOrientation;
+  clothingPresentation?: ClothingPresentation;
   background: BackgroundStyle;
   surface: SurfaceStyle;
   props: PropsStyle;

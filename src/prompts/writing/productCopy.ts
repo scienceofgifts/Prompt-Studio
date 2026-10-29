@@ -25,18 +25,43 @@ function formatProductCopyTone(tone: ProductCopyTone): string {
 
 /**
  * Builds the complete prompt for writing high-converting, publication-grade Product Page Copy.
- * Automatically incorporates Global + Copy writing styles and customizable template rules.
+ * Automatically incorporates Global + Copy writing styles, physical specifications
+ * (Key Features, Materials, Dimensions), and item-specific audience/occasion/personalization details.
  */
 export function generateProductCopyPrompt(
   options: ProductCopyOptions,
   styles?: Partial<WritingStylesConfig>
 ): string {
   const name = options.productName.trim() || 'Sidereus Nuncius Celestial Hardcover Notebook';
-  const type = options.productType.trim() || 'Archival Stationery / Journal';
-  const customer = options.targetCustomer.trim() || 'Stargazers, historians, writers, and thoughtful gift seekers';
-  const concept = options.productConcept.trim() || 'Inspired by Galileo Galilei’s 1610 astronomical sketches of the lunar surface and Jupiter’s moons';
-  const features = options.keyFeatures.trim() || '160 pages of 120 GSM fountain pen-friendly paper, debossed gold foil constellation map, silk ribbon bookmark, lay-flat thread binding, elastic closure';
+  const type = options.productType.trim() || 'Archival Stationery / Hardcover Notebook';
+  const customer =
+    options.targetCustomer.trim() ||
+    'Stargazers, historians, writers, and thoughtful gift seekers';
+  const concept =
+    options.productConcept.trim() ||
+    'Inspired by Galileo Galilei’s 1610 astronomical sketches of the lunar surface and Jupiter’s moons';
+  const features =
+    options.keyFeatures.trim() ||
+    '160 pages of 120 GSM fountain pen-friendly paper, debossed gold foil constellation map, silk ribbon bookmark, lay-flat thread binding, elastic closure';
+  const materials = options.materials?.trim() || '';
+  const dimensions = options.dimensions?.trim() || '';
+  const occasion = options.occasion?.trim() || '';
+  const personalization = options.personalization?.trim() || '';
   const toneDesc = formatProductCopyTone(options.tone);
+
+  const featureLines = features
+    .split('\n')
+    .map((f) => f.trim())
+    .filter(Boolean)
+    .map((f) => `  - ${f}`)
+    .join('\n');
+
+  const materialsLine = materials ? `\n• Materials & Construction: ${materials}` : '';
+  const dimensionsLine = dimensions ? `\n• Dimensions & Sizing: ${dimensions}` : '';
+  const occasionLine = occasion ? `\n• Gifting Occasion / Context: ${occasion}` : '';
+  const personalizationLine = personalization
+    ? `\n• Personalization / Custom Details: ${personalization}`
+    : '';
 
   const additionalSection = options.additionalInstructions?.trim()
     ? `\nADDITIONAL PRODUCT BRIEFING:\n${options.additionalInstructions.trim()}\n`
@@ -58,10 +83,10 @@ ${roleAndObjective}
 PRODUCT BRIEF:
 • Product Name: ${name}
 • Product Type / Category: ${type}
-• Target Customer / Recipient: ${customer}
+• Target Customer / Recipient: ${customer}${occasionLine}${personalizationLine}
 • Conceptual Foundation / Narrative: ${concept}
-• Materials & Key Features:
-${features.split('\n').map(f => `  - ${f}`).join('\n')}
+• Key Features:
+${featureLines}${materialsLine}${dimensionsLine}
 • Brand Voice & Tone: ${toneDesc}
 
 ${requiredDeliverables}

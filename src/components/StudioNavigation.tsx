@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Camera,
-  Gift,
-  FileText,
+  Layers,
   ShoppingBag,
-  Sparkles,
-  PenTool,
-  Database,
   Sliders,
   Settings as SettingsIcon,
 } from 'lucide-react';
@@ -51,18 +47,11 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
       shortDesc: 'Editorial product staging & camera prompts',
     },
     {
-      id: 'gift-guide',
-      category: 'writing',
-      label: 'Gift Guides',
-      icon: <Gift className="w-4 h-4" />,
-      shortDesc: 'Curated editorial gift roundups',
-    },
-    {
-      id: 'article',
-      category: 'writing',
-      label: 'Articles',
-      icon: <FileText className="w-4 h-4" />,
-      shortDesc: 'Deep-dive stories, explainer & essays',
+      id: 'gift-guide-hero',
+      category: 'image',
+      label: 'Gift Guide Hero Image',
+      icon: <Layers className="w-4 h-4" />,
+      shortDesc: 'Multi-product hero compositions for gift guides',
     },
     {
       id: 'product-copy',
@@ -70,13 +59,6 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
       label: 'Product Copy',
       icon: <ShoppingBag className="w-4 h-4" />,
       shortDesc: 'High-converting boutique catalog descriptions',
-    },
-    {
-      id: 'product-data',
-      category: 'writing',
-      label: 'Product Data',
-      icon: <Database className="w-4 h-4" />,
-      shortDesc: 'Structured YAML product records & catalog metadata',
     },
   ];
 
@@ -149,7 +131,7 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
 
           {/* Right Action / Mode indicator & Settings */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {activeTool !== 'product-photography' && activeTool !== 'settings' && onOpenStyleLibrary && (
+            {activeTool === 'product-copy' && onOpenStyleLibrary && (
               <button
                 type="button"
                 onClick={onOpenStyleLibrary}

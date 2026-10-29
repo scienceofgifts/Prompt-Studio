@@ -1,6 +1,7 @@
 export type ProductType =
   | 'mug'
   | 'tshirt'
+  | 'sweatshirt'
   | 'hoodie'
   | 'notebook'
   | 'glass'
@@ -14,6 +15,28 @@ export type ProductOrientation =
   | 'folded'
   | 'flat-lay'
   | 'naturally-arranged';
+
+export type ClothingPresentationGroup = 'flat-lay' | 'folded' | 'other';
+
+export type ClothingPresentation =
+  // A. Flat-lay presentations
+  | 'classic-symmetrical-flat-lay'
+  | 'diagonal-flat-lay'
+  | 'relaxed-natural-flat-lay'
+  | 'asymmetrical-sleeve-flat-lay'
+  | 'editorial-flat-lay-with-props'
+  // B. Folded presentations
+  | 'folded-full-graphic'
+  | 'compact-boutique-fold'
+  | 'hoodie-hood-displayed'
+  | 'layered-folded-stack'
+  // C. Other garment presentations
+  | 'three-quarter-tabletop'
+  | 'low-angle-tabletop'
+  | 'hanger-presentation'
+  | 'ghost-mannequin'
+  | 'front-and-back'
+  | 'close-up-detail';
 
 export type BackgroundStyle =
   | 'neutral-editorial'
@@ -238,6 +261,7 @@ export interface PromptOptions {
   productType: ProductType;
   customProductType?: string;
   orientation: ProductOrientation;
+  clothingPresentation?: ClothingPresentation;
   background: BackgroundStyle;
   surface: SurfaceStyle;
   props: PropsStyle;
@@ -285,3 +309,48 @@ export interface ProductImagePromptTemplate {
   uiGuidance: string;
   generatePrompt: (options: PromptOptions) => string;
 }
+
+// ==========================================
+// Gift Guide Hero Image Prompt Types
+// ==========================================
+
+export type HeroPropDensity = 'minimal' | 'balanced' | 'rich';
+
+export type HeroProductCategory =
+  | 'tshirt'
+  | 'sweatshirt'
+  | 'hoodie'
+  | 'mug'
+  | 'glass'
+  | 'waterBottle'
+  | 'tumbler'
+  | 'poster'
+  | 'toteBag'
+  | 'notebook'
+  | 'other';
+
+export interface HeroProductReference {
+  id: string;
+  name: string;
+  dataUrl?: string;
+  size?: string;
+  width?: number;
+  height?: number;
+  category: HeroProductCategory;
+  customLabel?: string;
+  isPrimaryHero?: boolean;
+}
+
+export interface GiftGuideHeroPromptOptions {
+  products: HeroProductReference[];
+  background: BackgroundStyle;
+  surface: SurfaceStyle;
+  propDensity: HeroPropDensity;
+  aspectRatio: AspectRatio;
+  cameraAngle?: CameraAngle;
+  lightingStyle?: LightingStyle;
+  shadowCharacter?: ShadowCharacter;
+  colorPalette?: ColorPalette;
+  additionalInstructions?: string;
+}
+

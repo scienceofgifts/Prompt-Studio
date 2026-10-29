@@ -1,6 +1,7 @@
 import { ProductType, ProductImagePromptTemplate, PromptOptions } from '../types';
 import { mugPromptTemplate, generateMugPrompt } from './mug';
 import { tshirtPromptTemplate, generateTshirtPrompt } from './tshirt';
+import { sweatshirtPromptTemplate, generateSweatshirtPrompt } from './sweatshirt';
 import { hoodiePromptTemplate, generateHoodiePrompt } from './hoodie';
 import { notebookPromptTemplate, generateNotebookPrompt } from './notebook';
 import { glassPromptTemplate, generateGlassPrompt } from './glass';
@@ -10,9 +11,13 @@ import { posterPromptTemplate, generatePosterPrompt } from './poster';
 import { otherPromptTemplate, generateOtherPrompt } from './other';
 import { buildChatGPTPhotoPrompt, buildGeminiPhotoPrompt } from '../shared/modelFormatters';
 
+export * from './clothing';
+export * from './giftGuideHero';
+
 export const imagePromptTemplates: Record<ProductType, ProductImagePromptTemplate> = {
   mug: mugPromptTemplate,
   tshirt: tshirtPromptTemplate,
+  sweatshirt: sweatshirtPromptTemplate,
   hoodie: hoodiePromptTemplate,
   notebook: notebookPromptTemplate,
   glass: glassPromptTemplate,
@@ -40,6 +45,8 @@ export {
   generateMugPrompt,
   tshirtPromptTemplate,
   generateTshirtPrompt,
+  sweatshirtPromptTemplate,
+  generateSweatshirtPrompt,
   hoodiePromptTemplate,
   generateHoodiePrompt,
   notebookPromptTemplate,

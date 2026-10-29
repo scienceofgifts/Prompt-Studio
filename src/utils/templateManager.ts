@@ -1,15 +1,10 @@
-import { GeneratorId, GeneratorTemplateConfig } from '../prompts/templates/types';
-import {
-  GENERATOR_TEMPLATES_CONFIG,
-  DEFAULT_PHOTOGRAPHY_SECTIONS,
-  DEFAULT_GIFT_GUIDES_SECTIONS,
-  DEFAULT_ARTICLES_SECTIONS,
-  DEFAULT_PRODUCT_COPY_SECTIONS,
-  DEFAULT_PRODUCT_DATA_SECTIONS,
-} from '../prompts/templates/defaults';
+import { GeneratorId } from '../prompts/templates/types';
+import { GENERATOR_TEMPLATES_CONFIG } from '../prompts/templates/defaults';
 
 const STORAGE_KEY_PREFIX = 'scienceOfGifts_template_';
 export const TEMPLATES_UPDATED_EVENT = 'scienceOfGifts_templates_updated';
+
+const ACTIVE_GENERATOR_IDS: GeneratorId[] = ['photography', 'productCopy'];
 
 function getStorageKey(generatorId: GeneratorId, sectionKey: string): string {
   return `${STORAGE_KEY_PREFIX}${generatorId}_${sectionKey}`;
@@ -70,7 +65,6 @@ export function isTemplateCustomized(generatorId: GeneratorId, sectionKey?: stri
     }
   }
 
-  // Check all sections in this generator
   for (const key of Object.keys(config.sections)) {
     try {
       if (window.localStorage.getItem(getStorageKey(generatorId, key)) !== null) {
@@ -85,20 +79,13 @@ export function isTemplateCustomized(generatorId: GeneratorId, sectionKey?: stri
 }
 
 /**
- * Counts total customized sections across all generators.
+ * Counts total customized sections across all retained generators.
  */
 export function countCustomizedTemplates(): number {
   if (typeof window === 'undefined' || !window.localStorage) return 0;
   let count = 0;
-  const generatorIds: GeneratorId[] = [
-    'photography',
-    'giftGuides',
-    'articles',
-    'productCopy',
-    'productData',
-  ];
 
-  for (const genId of generatorIds) {
+  for (const genId of ACTIVE_GENERATOR_IDS) {
     const config = GENERATOR_TEMPLATES_CONFIG[genId];
     if (config) {
       for (const sectionKey of Object.keys(config.sections)) {
@@ -168,19 +155,11 @@ export function resetGeneratorTemplates(generatorId: GeneratorId): void {
 }
 
 /**
- * Resets all templates across all 5 generators back to built-in defaults.
+ * Resets all templates across the retained generators back to built-in defaults.
  */
 export function resetAllTemplates(): void {
   if (typeof window !== 'undefined' && window.localStorage) {
-    const generatorIds: GeneratorId[] = [
-      'photography',
-      'giftGuides',
-      'articles',
-      'productCopy',
-      'productData',
-    ];
-
-    for (const genId of generatorIds) {
+    for (const genId of ACTIVE_GENERATOR_IDS) {
       const config = GENERATOR_TEMPLATES_CONFIG[genId];
       if (config) {
         for (const sectionKey of Object.keys(config.sections)) {
@@ -201,15 +180,8 @@ export function resetAllTemplates(): void {
  */
 export function exportAllTemplatesAsJson(): string {
   const exportData: Record<string, Record<string, string>> = {};
-  const generatorIds: GeneratorId[] = [
-    'photography',
-    'giftGuides',
-    'articles',
-    'productCopy',
-    'productData',
-  ];
 
-  for (const genId of generatorIds) {
+  for (const genId of ACTIVE_GENERATOR_IDS) {
     exportData[genId] = getGeneratorSections(genId);
   }
 
@@ -235,16 +207,8 @@ export function importTemplatesFromJson(jsonString: string): { success: boolean;
       return { success: false, message: 'Invalid template backup format: missing templates object.' };
     }
 
-    const generatorIds: GeneratorId[] = [
-      'photography',
-      'giftGuides',
-      'articles',
-      'productCopy',
-      'productData',
-    ];
-
     let importedCount = 0;
-    for (const genId of generatorIds) {
+    for (const genId of ACTIVE_GENERATOR_IDS) {
       const genData = parsed.templates[genId];
       if (genData && typeof genData === 'object') {
         const config = GENERATOR_TEMPLATES_CONFIG[genId];

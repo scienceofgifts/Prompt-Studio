@@ -1,5 +1,12 @@
 import { PromptOptions } from '../types';
-import { buildImagePrompt } from '../image';
+import {
+  buildImagePrompt,
+  CLOTHING_PRESENTATION_PRESETS,
+  getClothingGeminiCameraDesc,
+  getClothingGeminiOrientationDesc,
+  isClothingProduct,
+  resolveClothingPresentation,
+} from '../image';
 
 /**
  * Builds a prompt optimized for ChatGPT / DALL-E 3 / GPT-4o image generation and editing.
@@ -17,12 +24,17 @@ ${basePrompt}
 • Ensure crisp visual clarity, natural depth, and professional commercial staging matching the requested aspect ratio (${options.aspectRatio}).`;
 }
 
-function getDetailedOrientationDesc(productType: string, orientation: string): string {
+function getDetailedOrientationDesc(
+  productType: string,
+  orientation: string,
+  options?: PromptOptions
+): string {
+  if (options && isClothingProduct(options.productType)) {
+    return getClothingGeminiOrientationDesc(options);
+  }
+
   switch (orientation) {
     case 'folded':
-      if (productType === 'tshirt' || productType === 'hoodie') {
-        return 'Neatly folded and resting flat on the tabletop surface, with the front printed graphic facing upward toward the camera and neatly centered in the frame with soft, natural fabric folds.';
-      }
       if (productType === 'notebook') {
         return 'Neatly closed and resting flat on the tabletop surface with crisp corners and cover artwork facing upward.';
       }
@@ -56,8 +68,13 @@ function getDetailedCameraDesc(
   shot?: string,
   ratio: string = '1:1',
   orientation?: string,
-  productType?: string
+  productType?: string,
+  options?: PromptOptions
 ): string {
+  if (options && isClothingProduct(options.productType)) {
+    return getClothingGeminiCameraDesc(options);
+  }
+
   let angleInstruction =
     'Camera positioned at a product-first catalog perspective (approximately 75 to 85 degrees elevation) looking down at the product resting on the surface';
   if (angle === 'straight-on') {
@@ -87,25 +104,48 @@ function getCleanEnvDesc(
   lighting?: string,
   props?: string,
   propLevel?: string,
-  orientation?: string
+  orientation?: string,
+  options?: PromptOptions
 ): string {
   const bgClean = bg.replace(/-/g, ' ');
   const surfaceClean = surface.replace(/-/g, ' ');
   const lightingClean = lighting ? lighting.replace(/-/g, ' ') : 'large soft studio lighting';
 
+  const isClothing = Boolean(options && isClothingProduct(options.productType));
+  const resolvedPresentation =
+    options && isClothingProduct(options.productType)
+      ? resolveClothingPresentation(
+          options.productType,
+          options.clothingPresentation,
+          options.orientation
+        )
+      : undefined;
+  const presetMeta = resolvedPresentation
+    ? CLOTHING_PRESENTATION_PRESETS[resolvedPresentation]
+    : undefined;
+
   let tableConstruction = `Construct a physically coherent studio scene with a substantial, solid tabletop or platform made from ${surfaceClean}. Give it believable thickness, authentic material texture (such as stone grain, pores, veining, or wood grain), and physically plausible edge geometry with a subtle bevel or rounded profile appropriate to the material.`;
-  if (orientation === 'flat-lay') {
+
+  if (presetMeta?.requiresVerticalStudioStaging) {
+    tableConstruction = `Construct a clean, physically coherent vertical studio environment with a smooth studio backdrop (${bgClean}) and generous uncluttered space around the garment, without a tabletop cutting across the vertical silhouette.`;
+  } else if (orientation === 'flat-lay' || presetMeta?.baseOrientation === 'flat-lay') {
     tableConstruction = `Construct a continuous, physically coherent tabletop or platform surface made from ${surfaceClean} with authentic material texture (stone grain, pores, veining, or wood grain) viewed from an overhead flat-lay perspective where the outer edge extends naturally beyond the framing.`;
   }
 
+  const hasProps =
+    Boolean(presetMeta?.requiresEditorialProps) || (Boolean(props) && props !== 'none');
+
   let propText = 'uncluttered staging with generous negative space';
-  if (props && props !== 'none') {
-    const isMinimal = propLevel === 'minimal';
+  if (hasProps) {
+    const isMinimal = propLevel === 'minimal' || Boolean(presetMeta?.requiresEditorialProps);
     const propCountGuidance = isMinimal
       ? 'Prefer two distinct, complementary secondary props placed naturally in different areas of the scene with balanced scale and visual weight.'
       : 'Include curated secondary props.';
+    const clothingArtworkClearance = isClothing
+      ? ' Props must strictly stay in the surrounding space and must never overlap, touch, or obscure the garment or its printed design.'
+      : '';
 
-    propText = `${propCountGuidance} Secondary props must be non-intrusive, positioned strictly without obstructing the hero product. REALISTIC PROP FIDELITY & STRICT TEXT EXCLUSION: Secondary props must be believable physical objects with convincing material texture (such as natural leather grain, paper edges, ceramic glaze, metal patina, or plant leaf structure), natural highlights, realistic seams, and consistent lighting. Strictly prohibit any invented text, gibberish lettering, fake book titles, logos, labels, inscriptions, or watermarks. All secondary objects must remain unbranded, plain, and visually subordinate to the hero product`;
+    propText = `${propCountGuidance} Secondary props must be non-intrusive, positioned strictly without obstructing the hero product.${clothingArtworkClearance} REALISTIC PROP FIDELITY & STRICT TEXT EXCLUSION: Secondary props must be believable physical objects with convincing material texture (such as natural leather grain, paper edges, ceramic glaze, metal patina, or plant leaf structure), natural highlights, realistic seams, and consistent lighting. Strictly prohibit any invented text, gibberish lettering, fake book titles, logos, labels, inscriptions, or watermarks. All secondary objects must remain unbranded, plain, and visually subordinate to the hero product`;
   }
 
   const sciencePaletteNote =
@@ -118,7 +158,7 @@ function getCleanEnvDesc(
 
 /**
  * Builds a concise, directive, visually precise prompt optimized for Google Gemini
- * image generation, reference grounding, and multimodal editing across all 9 product categories.
+ * image generation, reference grounding, and multimodal editing across all product categories.
  */
 export function buildGeminiPhotoPrompt(options: PromptOptions): string {
   const isRef = options.hasReferenceImage;
@@ -132,19 +172,41 @@ export function buildGeminiPhotoPrompt(options: PromptOptions): string {
   let keyFidelity = '';
   let keyExclusions = '';
 
+  const resolvedClothingPres = isClothingProduct(options.productType)
+    ? resolveClothingPresentation(
+        options.productType,
+        options.clothingPresentation,
+        options.orientation
+      )
+    : undefined;
+
+  const clothingExclusionSuffix =
+    resolvedClothingPres === 'hanger-presentation'
+      ? 'No human models, no visible necks, no mannequins; use only one simple, unobtrusive, unbranded hanger. No warped lettering, no excessive wrinkles, no malformed sleeves, no invented back graphics, no gray faded blacks.'
+      : resolvedClothingPres === 'ghost-mannequin'
+      ? 'No human models, no visible skin or necks, no visible mannequin plastic/hardware, no hangers; render strictly as a hollow 3D ghost-mannequin silhouette. No warped lettering, no excessive wrinkles, no malformed sleeves, no invented back graphics, no gray faded blacks.'
+      : 'No human models, no visible necks, no mannequins, no hangers, no warped lettering, no excessive wrinkles, no malformed sleeves, no invented back graphics, no gray faded blacks.';
+
   switch (options.productType) {
     case 'tshirt':
       productLabel = 'Apparel / T-shirt';
       keyFidelity =
-        'Faithfully preserve authentic ring-spun cotton jersey texture, ribbed crewneck collar, and printed graphic artwork. Apply moderately enhanced color vibrancy and rich, distinct artwork colors without altering or recoloring the original palette. Render deep, clean blacks with visible fabric weave and texture.';
-      keyExclusions = 'No human models, no visible necks, no mannequins, no warped lettering, no gray faded blacks.';
+        'Faithfully preserve authentic ring-spun cotton jersey texture, ribbed crewneck collar, seams, and exact supplied printed graphic artwork, lettering, spelling, colors, proportions, and placement. Do not redesign, reinterpret, or regenerate the graphic, and do not invent details on the back when not supplied. Apply moderately enhanced color vibrancy and rich, distinct artwork colors without altering or recoloring the original palette. Render deep, clean blacks with visible fabric weave and texture.';
+      keyExclusions = clothingExclusionSuffix;
+      break;
+
+    case 'sweatshirt':
+      productLabel = 'Apparel / Crewneck Sweatshirt';
+      keyFidelity =
+        'Faithfully preserve authentic mid-to-heavyweight crewneck fleece or French terry texture, ribbed crewneck collar band, wide ribbed wrist cuffs, ribbed hem waistband, and exact supplied printed graphic artwork, lettering, spelling, colors, proportions, and placement. Do not redesign, reinterpret, or regenerate the graphic, and do not invent details on the back when not supplied. Render rich tonal contrast and vivid artwork colors.';
+      keyExclusions = `${clothingExclusionSuffix} Do not add a hood or drawstrings to a crewneck sweatshirt.`;
       break;
 
     case 'hoodie':
       productLabel = 'Apparel / Heavyweight Hoodie';
       keyFidelity =
-        'Preserve authentic heavyweight fleece texture, double-layer hood, matching cotton drawstrings, kangaroo pocket, ribbed cuffs, and precise chest graphic placement with enhanced tonal contrast and rich artwork color vibrancy.';
-      keyExclusions = 'No human models, no mannequins, no stiff cardboard appearance.';
+        'Preserve authentic heavyweight fleece texture, double-layer hood, matching cotton drawstrings, kangaroo pocket, ribbed cuffs, hem waistband, and exact supplied printed graphic artwork, lettering, spelling, colors, proportions, and chest/back placement with enhanced tonal contrast and rich artwork color vibrancy. Do not redesign, reinterpret, or regenerate the graphic, and do not invent details on the back when not supplied.';
+      keyExclusions = `${clothingExclusionSuffix} No stiff cardboard appearance; do not flatten or crumple the hood into an unnatural lump.`;
       break;
 
     case 'notebook':
@@ -198,13 +260,18 @@ export function buildGeminiPhotoPrompt(options: PromptOptions): string {
       break;
   }
 
-  const orientationDesc = getDetailedOrientationDesc(options.productType, options.orientation);
+  const orientationDesc = getDetailedOrientationDesc(
+    options.productType,
+    options.orientation,
+    options
+  );
   const cameraDesc = getDetailedCameraDesc(
     options.cameraAngle,
     options.shotType,
     options.aspectRatio,
     options.orientation,
-    options.productType
+    options.productType,
+    options
   );
   const envDesc = getCleanEnvDesc(
     options.background,
@@ -212,7 +279,8 @@ export function buildGeminiPhotoPrompt(options: PromptOptions): string {
     options.lightingStyle,
     options.props,
     options.propLevel,
-    options.orientation
+    options.orientation,
+    options
   );
   const addText = options.additionalInstructions
     ? `• Custom Staging Note: ${options.additionalInstructions}`

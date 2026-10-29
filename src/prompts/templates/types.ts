@@ -1,9 +1,4 @@
-export type GeneratorId =
-  | 'photography'
-  | 'giftGuides'
-  | 'articles'
-  | 'productCopy'
-  | 'productData';
+export type GeneratorId = 'photography' | 'productCopy';
 
 export interface TemplateSectionMetadata {
   id: string;
