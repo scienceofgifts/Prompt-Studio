@@ -89,7 +89,7 @@ export type PropsStyle =
   | 'books-ephemera'
   | 'seasonal-subtle';
 
-export type AspectRatio = '1:1' | '4:5' | '3:2' | '16:9';
+export type AspectRatio = '1:1' | '3:4' | '3:2' | '16:9';
 
 // ==========================================
 // Expanded Creative Direction Types
@@ -125,6 +125,7 @@ export type ProductPresentation =
 
 export type ShotType =
   | 'hero-product'
+  | 'design-close-up'
   | 'standard-catalog'
   | 'editorial-still-life'
   | 'detail-oriented'

@@ -21,8 +21,11 @@ import {
   FileCode,
   Eye,
   X,
+  Cpu,
 } from 'lucide-react';
 import { GeneratorId } from '../../prompts/templates/types';
+import { AiModelsSettingsPanel } from './AiModelsSettingsPanel';
+import { getAiModels } from '../../utils/aiModelManager';
 import {
   GENERATOR_TEMPLATES_CONFIG,
   DEFAULT_PHOTOGRAPHY_SECTIONS,
@@ -49,12 +52,14 @@ interface SettingsPageProps {
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   onBackToStudio,
 }) => {
+  const [activeSection, setActiveSection] = useState<'templates' | 'ai-models'>('templates');
   const [activeGenerator, setActiveGenerator] = useState<GeneratorId>('photography');
   const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
   const [activeSearch, setActiveSearch] = useState<string>('');
   const [filterCustomizedOnly, setFilterCustomizedOnly] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [savedSectionKey, setSavedSectionKey] = useState<string | null>(null);
+  const [aiModelCount, setAiModelCount] = useState<number>(() => getAiModels().length);
 
   const generatorList: { id: GeneratorId; label: string; icon: React.ReactNode; count: number }[] = [
     {
@@ -316,7 +321,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
             <div className="space-y-1.5 mt-2">
               {generatorList.map((gen) => {
-                const isActive = activeGenerator === gen.id;
+                const isActive = activeSection === 'templates' && activeGenerator === gen.id;
                 const isCustom = isTemplateCustomized(gen.id);
 
                 return (
@@ -324,6 +329,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     key={gen.id}
                     type="button"
                     onClick={() => {
+                      setActiveSection('templates');
                       setActiveGenerator(gen.id);
                       setActiveSearch('');
                     }}
@@ -369,6 +375,55 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
           </div>
 
+          {/* AI Recognition Models Navigation Card */}
+          <div className="bg-white rounded-2xl border border-[#e2e8f0] p-4 shadow-xs">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#64748b] px-3 py-2 flex items-center justify-between">
+              <span>AI Recognition</span>
+              <span className="text-[10px] lowercase font-normal bg-[#f1f5f9] px-2 py-0.5 rounded-full text-[#475569]">
+                fallback order
+              </span>
+            </h2>
+
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSection('ai-models');
+                  setAiModelCount(getAiModels().length);
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs font-medium transition-all cursor-pointer ${
+                  activeSection === 'ai-models'
+                    ? 'bg-[#f0fdfa] text-[#0f766e] font-semibold border border-[#99f6e4] shadow-xs'
+                    : 'text-[#475569] hover:bg-[#f8fafc] hover:text-[#0f172a]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      activeSection === 'ai-models'
+                        ? 'bg-[#0f766e] text-white'
+                        : 'bg-[#f1f5f9] text-[#64748b]'
+                    }`}
+                  >
+                    <Cpu className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-semibold">AI Models</div>
+                    <div className="text-[10px] text-[#64748b] font-normal">
+                      {aiModelCount} configured Gemini models
+                    </div>
+                  </div>
+                </div>
+
+                <ChevronRight
+                  className={`w-4 h-4 ${
+                    activeSection === 'ai-models' ? 'text-[#0f766e]' : 'text-[#cbd5e1]'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
           {/* Architectural Notes Card */}
           <div className="bg-[#f8fafc] rounded-2xl border border-[#e2e8f0] p-4 text-xs text-[#64748b] space-y-2.5">
             <div className="flex items-center gap-2 text-[#0f172a] font-semibold">
@@ -387,8 +442,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
 
-        {/* Right Content Area: Sections Editor */}
+        {/* Right Content Area: AI Models OR Template Sections Editor */}
         <div className="lg:col-span-8 space-y-6">
+          {activeSection === 'ai-models' ? (
+            <AiModelsSettingsPanel
+              onStatusNotice={(text, type) => {
+                setAiModelCount(getAiModels().length);
+                showStatus(text, type);
+              }}
+            />
+          ) : (
+            <>
           {/* Active Generator Header Bar */}
           <div className="bg-white rounded-2xl border border-[#e2e8f0] p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -583,6 +647,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 );
               })}
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

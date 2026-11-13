@@ -2,10 +2,14 @@ import {
   PromptOptions,
   ProductImagePromptTemplate,
   ProductOrientation,
+  ShotType,
 } from '../types';
 import { buildMasterPhotographyPrompt } from '../shared/options';
 
-function getWaterBottleOrientationText(orientation: ProductOrientation): string {
+function getWaterBottleOrientationText(orientation: ProductOrientation, shotType?: ShotType): string {
+  if (shotType === 'design-close-up') {
+    return 'Standing upright while the camera frames closely around the printed or laser-etched artwork across the cylindrical body (~70–85% artwork coverage across the primary front face where proportions allow), retaining genuine bottle finish, curvature, and subtle shoulder/body context rather than full-height negative space.';
+  }
   switch (orientation) {
     case 'upright':
       return 'Standing tall and upright on its base at an eye-level hero perspective, highlighting the full vertical profile, sleek cap finish, and frontal artwork.';
@@ -23,7 +27,7 @@ export function generateWaterBottlePrompt(options: PromptOptions): string {
   return buildMasterPhotographyPrompt(options, {
     productTypeName: 'Water Bottle / Insulated Flask',
     productDescription: 'A premium reusable water bottle / insulated flask faithfully reproducing the exact metallic silhouette, cap construction, and printed or laser-etched artwork from the reference product.',
-    productOrientationText: getWaterBottleOrientationText(options.orientation),
+    productOrientationText: getWaterBottleOrientationText(options.orientation, options.shotType),
     productFidelityDirectives: [
       'PRESERVE EXACT PHYSICAL FORM: Preserve the exact bottle proportions, cylindrical taper, shoulder radius, neck geometry, and base bevel from the reference image.',
       'CAP & LID MECHANISM: Faithfully retain the specific lid construction (screw cap, wooden inlay, stainless steel carry loop, or sports spout) exactly as shown without inventing alternative closures.',

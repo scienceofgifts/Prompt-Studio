@@ -30,6 +30,12 @@ import {
   getClothingSurfaceOverride,
   resolveClothingPresentation,
 } from '../image/clothing';
+import { normalizeAspectRatio } from './studioOptions';
+import { DEFAULT_PHOTOGRAPHY_SECTIONS } from '../templates/defaults';
+import {
+  getTemplateSection,
+  isLegacyObsoleteCropSafeTemplate,
+} from '../../utils/templateManager';
 
 // ==========================================
 // 1. Reference & Preservation Headers
@@ -83,6 +89,32 @@ export function getThemePromptText(theme?: PhotographyTheme): string {
   }
 }
 
+export function isDesignCloseUpShot(options?: PromptOptions): boolean {
+  return options?.shotType === 'design-close-up';
+}
+
+export function getDesignCloseUpProductGuidance(options: PromptOptions): string {
+  const customLabel = options.customProductType?.trim() || 'physical product';
+  switch (options.productType) {
+    case 'tshirt':
+    case 'sweatshirt':
+    case 'hoodie':
+      return 'Design Close-Up Artwork Photograph (~70–85% artwork coverage when proportions allow): Move the camera significantly closer to closely photograph the actual printed or embroidered graphic on the chest/front panel of the real garment. Retain surrounding knit cotton jersey or heavyweight fleece fabric weave, ink-in-fiber texture, and subtle textile contour so it unmistakably reads as a real physical garment—NOT a bare collar/stitching detail shot and NOT a full sleeve-to-sleeve garment silhouette. Sleeves, side seams, and hem may naturally crop outside the frame.';
+    case 'mug':
+    case 'tumbler':
+    case 'waterBottle':
+    case 'glass':
+      return 'Design Close-Up Artwork Photograph (~70–85% artwork coverage across the primary front face where wrap proportions allow): Move the camera significantly closer to prominently frame the actual printed or etched design across the genuine curved drinkware surface. Preserve authentic cylindrical curvature, natural ceramic glaze, glass clarity, or powder-coat finish highlights, and subtle vessel body/rim context so it clearly reads as a physical three-dimensional object without glare obscuring typography.';
+    case 'notebook':
+      return 'Design Close-Up Artwork Photograph (~70–85% artwork coverage when proportions allow): Move the camera significantly closer to tightly frame the actual cover artwork, title typography, foil stamping, or illustration on the physical notebook cover. Retain tangible bookcloth or archival cover grain and a subtle hint of the crisp cover edge, elastic band, or ribbon marker so it clearly reads as a real physical bound book without inventing any spine crease.';
+    case 'poster':
+      return 'Design Close-Up Artwork Photograph (~70–85% artwork coverage when proportions allow): Tight, parallel, distortion-free close-up framing showcasing the actual printed artwork, fine-art ink grain, and essential typography on physical archival paper. Retain subtle paper texture, gentle raking studio light, and minimal edge/mat/surface context so it clearly reads as a tangible physical print rather than a flat digital graphic file; outer blank paper margins or frame edges may rest near or crop cleanly outside the frame.';
+    case 'other':
+    default:
+      return `Design Close-Up Artwork Photograph (~70–85% artwork coverage when compatible with design proportions): Move the camera significantly closer to frame the actual visible printed artwork, illustration, and typography on the real physical ${customLabel}. Retain enough surrounding authentic physical material texture, contours, and surface edges so it clearly reads as a tangible physical object rather than a flat digital graphic.`;
+  }
+}
+
 // ==========================================
 // 3. Camera & Angle (With Bounded Variation)
 // ==========================================
@@ -95,9 +127,13 @@ export function getCameraPromptText(options: PromptOptions): string {
   const perspective = options.perspective || 'natural';
   const focal = options.focalLength || 'normal-editorial';
   const dof = options.depthOfField || 'gentle-falloff';
+  const isCloseUp = shot === 'design-close-up';
 
   let shotDesc = 'Hero product composition featuring complete, unobstructed product visibility.';
   switch (shot) {
+    case 'design-close-up':
+      shotDesc = getDesignCloseUpProductGuidance(options);
+      break;
     case 'standard-catalog':
       shotDesc = 'Standard high-clarity e-commerce catalog shot with balanced, clean product framing.';
       break;
@@ -116,47 +152,75 @@ export function getCameraPromptText(options: PromptOptions): string {
   }
 
   let angleDesc = 'Use a refined three-quarter perspective with a subtly elevated or naturally eye-level viewpoint appropriate to the product. Allow the precise viewing angle and micro-elevation to vary naturally between generations while preserving sharp product recognition and correct geometry.';
-  switch (angle) {
-    case 'straight-on':
-      angleDesc = 'Use a straight-on eye-level angle with near-zero tilt. Allow subtle natural micro-variations in camera height and rotation between generations while maintaining a clean, authoritative frontal view.';
-      break;
-    case 'slightly-elevated':
-      angleDesc = 'Use a gently elevated 20–30 degree camera viewpoint looking down towards the product. Allow small natural variations in elevation angle between generations while preserving clear product geometry.';
-      break;
-    case 'slightly-lowered':
-      angleDesc = 'Use a slightly lowered camera perspective just below eye level to give the product subtle stature. Allow gentle micro-angle variations between generations.';
-      break;
-    case 'high-three-quarter':
-      angleDesc = 'Use a high three-quarter angle (40–50 degrees elevation) revealing both top surface planes and side contours. Allow slight variations in camera position between generations.';
-      break;
-    case 'gentle-overhead':
-      angleDesc = 'Use a gentle overhead to flat-lay perspective (75–90 degrees). Allow modest variations in product orientation and framing between generations.';
-      break;
-    case 'near-eye-level':
-      angleDesc = 'Use a near eye-level perspective resting at surface plane height. Allow minor natural height shifts between generations.';
-      break;
-    case 'natural-perspective':
-      angleDesc = 'Use a natural, unforced human perspective as if viewing the object on an editorial display table. Allow the exact camera angle and elevation to adapt naturally.';
-      break;
+  if (isCloseUp) {
+    if (options.orientation === 'flat-lay' || options.productType === 'notebook') {
+      angleDesc =
+        'Move the camera significantly closer in a clean, perpendicular overhead alignment directly facing the printed artwork plane so all lettering and illustrations stay geometrically true, legible, and distortion-free.';
+    } else if (options.productType === 'poster') {
+      angleDesc =
+        'Move the camera significantly closer in a clean, straight-on parallel alignment directly facing the printed poster artwork with zero perspective skew or glare hotspots across typography and fine detail.';
+    } else {
+      angleDesc =
+        'Move the camera significantly closer in a clean, frontal or gentle glare-free angle directly facing the primary printed artwork face so lettering, illustrations, and cylindrical curvature remain crisp, readable, and undistorted.';
+    }
+  } else {
+    switch (angle) {
+      case 'straight-on':
+        angleDesc = 'Use a straight-on eye-level angle with near-zero tilt. Allow subtle natural micro-variations in camera height and rotation between generations while maintaining a clean, authoritative frontal view.';
+        break;
+      case 'slightly-elevated':
+        angleDesc = 'Use a gently elevated 20–30 degree camera viewpoint looking down towards the product. Allow small natural variations in elevation angle between generations while preserving clear product geometry.';
+        break;
+      case 'slightly-lowered':
+        angleDesc = 'Use a slightly lowered camera perspective just below eye level to give the product subtle stature. Allow gentle micro-angle variations between generations.';
+        break;
+      case 'high-three-quarter':
+        angleDesc = 'Use a high three-quarter angle (40–50 degrees elevation) revealing both top surface planes and side contours. Allow slight variations in camera position between generations.';
+        break;
+      case 'gentle-overhead':
+        angleDesc = 'Use a gentle overhead to flat-lay perspective (75–90 degrees). Allow modest variations in product orientation and framing between generations.';
+        break;
+      case 'near-eye-level':
+        angleDesc = 'Use a near eye-level perspective resting at surface plane height. Allow minor natural height shifts between generations.';
+        break;
+      case 'natural-perspective':
+        angleDesc = 'Use a natural, unforced human perspective as if viewing the object on an editorial display table. Allow the exact camera angle and elevation to adapt naturally.';
+        break;
+    }
   }
 
-  let perspectiveDesc = 'Natural optical perspective with zero wide-angle distortion.';
-  if (perspective === 'slightly-compressed') perspectiveDesc = 'Slightly compressed optical perspective for clean architectural lines and elegant proportions.';
-  if (perspective === 'moderate-perspective') perspectiveDesc = 'Moderate optical perspective providing tangible three-dimensional depth and physical volume.';
-  if (perspective === 'intimate-close') perspectiveDesc = 'Intimate optical perspective drawing the viewer close to tactile surface details.';
+  let perspectiveDesc = isCloseUp
+    ? 'Clean, distortion-free close optical perspective keeping artwork geometry, straight lines, and typography completely true with zero wide-angle warping.'
+    : 'Natural optical perspective with zero wide-angle distortion.';
+  if (!isCloseUp) {
+    if (perspective === 'slightly-compressed') perspectiveDesc = 'Slightly compressed optical perspective for clean architectural lines and elegant proportions.';
+    if (perspective === 'moderate-perspective') perspectiveDesc = 'Moderate optical perspective providing tangible three-dimensional depth and physical volume.';
+    if (perspective === 'intimate-close') perspectiveDesc = 'Intimate optical perspective drawing the viewer close to tactile surface details.';
+  }
 
-  let focalDesc = 'Medium format 80mm prime lens rendering true-to-life geometry.';
-  if (focal === 'short-telephoto') focalDesc = '100mm short telephoto macro lens character for crisp edge definition and flattened perspective.';
-  if (focal === 'portrait-like') focalDesc = '85mm portrait lens character delivering elegant subject isolation.';
-  if (focal === 'macro-detail') focalDesc = '120mm macro lens character rendering razor-sharp micro-textures and foil detail.';
-  if (focal === 'longer-compressed') focalDesc = '150mm compressed perspective lens character for calm, orderly studio composition.';
+  let focalDesc = isCloseUp
+    ? '90mm–100mm close-focus macro product lens rendering tack-sharp printed artwork, lettering, and physical surface grain with zero distortion.'
+    : 'Medium format 80mm prime lens rendering true-to-life geometry.';
+  if (!isCloseUp) {
+    if (focal === 'short-telephoto') focalDesc = '100mm short telephoto macro lens character for crisp edge definition and flattened perspective.';
+    if (focal === 'portrait-like') focalDesc = '85mm portrait lens character delivering elegant subject isolation.';
+    if (focal === 'macro-detail') focalDesc = '120mm macro lens character rendering razor-sharp micro-textures and foil detail.';
+    if (focal === 'longer-compressed') focalDesc = '150mm compressed perspective lens character for calm, orderly studio composition.';
+  } else if (focal === 'macro-detail') {
+    focalDesc = '120mm macro lens character rendering razor-sharp printed artwork, fine typography, and authentic physical material grain.';
+  }
 
   let dofDesc = 'f/5.6 aperture providing tack-sharp clarity across the entire product with gentle, organic depth falloff in the background.';
-  if (dof === 'deep-clarity') dofDesc = 'f/8 deep depth of field keeping the product and immediate surroundings in sharp, crisp clarity.';
-  if (dof === 'moderate-depth') dofDesc = 'f/4.5 moderate depth of field keeping the main product face sharp with soft, natural background falloff.';
-  if (dof === 'shallow-editorial') dofDesc = 'f/2.8 shallow editorial depth of field focusing tack-sharp on front product details while background elements melt into silky bokeh.';
+  if (isCloseUp) {
+    dofDesc =
+      'Moderate aperture (f/5.6–f/8) keeping 100% of the printed artwork, typography, and illustrations tack-sharp across the entire visible design plane—never blur artwork edges with excessive shallow bokeh, allowing only subtle natural falloff on the outer surface/background.';
+  } else {
+    if (dof === 'deep-clarity') dofDesc = 'f/8 deep depth of field keeping the product and immediate surroundings in sharp, crisp clarity.';
+    if (dof === 'moderate-depth') dofDesc = 'f/4.5 moderate depth of field keeping the main product face sharp with soft, natural background falloff.';
+    if (dof === 'shallow-editorial') dofDesc = 'f/2.8 shallow editorial depth of field focusing tack-sharp on front product details while background elements melt into silky bokeh.';
+  }
 
-  return `CAMERA & VIEWPOINT DIRECTION (BOUNDED VARIATION):
+  return `CAMERA & VIEWPOINT DIRECTION (${isCloseUp ? 'DESIGN CLOSE-UP FRAMING' : 'BOUNDED VARIATION'}):
 • Shot Type: ${shotDesc}
 • Angle & Viewpoint: ${angleDesc}
 • Optical Perspective: ${perspectiveDesc}
@@ -172,6 +236,7 @@ export function getCompositionPromptText(options: PromptOptions): string {
   const space = options.negativeSpace || 'balanced';
   const pos = options.productPosition || 'centered';
   const pres = options.productPresentation || 'editorial';
+  const isCloseUp = isDesignCloseUpShot(options);
 
   let compDesc = 'Centered hero composition with calm, balanced framing and generous negative space.';
   switch (comp) {
@@ -216,12 +281,31 @@ export function getCompositionPromptText(options: PromptOptions): string {
   if (pres === 'catalog') presentationDesc = 'Pristine e-commerce catalog presentation.';
   if (pres === 'lifestyle-still-life') presentationDesc = 'Lifestyle-inspired tactile still-life presentation.';
 
+  let negativeSpaceLine = `Maintain ${space} negative space for calm breathing room and clean visual hierarchy.`;
+
+  if (isCloseUp) {
+    compDesc =
+      'Design Close-Up Artwork Framing: Closely frame the actual printed artwork as the dominant subject (targeting ~70–85% artwork coverage when compatible with design proportions). Allow non-essential outer physical product borders, sleeves, hem, or margins to extend toward or crop naturally at the frame boundaries rather than pulling wide.';
+    positionDesc =
+      'Center the primary printed artwork cleanly inside the frame so all essential typography, spelling, illustrations, and print details remain sharp and completely visible.';
+    presentationDesc =
+      'Close-up commercial artwork photography preserving authentic physical surface texture around the design (never a flat digital graphic file).';
+    negativeSpaceLine =
+      'Frame tightly around the printed design surrounded by authentic physical product material and subtle edge/surface context rather than wide empty background margins.';
+  }
+
+  const cropSafeCompositionNote = options.websiteCropSafe
+    ? isCloseUp
+      ? '\n• Website Crop-Safe Alignment (3:4 Portrait): Keep 100% of essential printed artwork, lettering, and illustrations comfortably inside the central 3:4 portrait safe zone with clean inner edge clearance; intentionally allow outer non-essential product borders to crop without ever clipping artwork.'
+      : '\n• Website Crop-Safe Alignment (3:4 Portrait): Keep the entire hero product silhouette—including protruding elements like mug handles, garment sleeves, hoods, caps, or ribbons—comfortably within the central 3:4 portrait safe area with roughly 8–12% edge clearance on all sides, maintaining strong scale without making the product tiny.'
+    : '';
+
   const clothingCompositionNote = getClothingCompositionNote(options);
 
   return `COMPOSITION & FRAMING DIRECTIVES:
 • Composition Style: ${compDesc}
 • Placement: ${positionDesc} ${presentationDesc}
-• Negative Space Balance: Maintain ${space} negative space for calm breathing room and clean visual hierarchy.${clothingCompositionNote}`;
+• Negative Space Balance: ${negativeSpaceLine}${cropSafeCompositionNote}${clothingCompositionNote}`;
 }
 
 // ==========================================
@@ -453,9 +537,13 @@ export function getPropsPromptText(options: PromptOptions): string {
     ? '\n• CLOTHING ARTWORK CLEARANCE: Props must strictly stay in the surrounding space and must NEVER overlap, touch, or obscure the garment\'s printed design.'
     : '';
 
+  const closeUpPropGuard = isDesignCloseUpShot(options)
+    ? '\n• DESIGN CLOSE-UP PROP RESTRAINT: Because the shot tightly frames the printed artwork, keep any prop accent strictly out of the primary artwork zone (visible only subtly at the outer margin if at all) so the design remains 100% dominant.'
+    : '';
+
   return `STYLING & PROPS DIRECTIVE (BOUNDED PROP VARIATION):
 • Prop Level: ${level} (${familyDesc}).
-• Prop Placement: ${placementDesc}.${clothingPropGuard}
+• Prop Placement: ${placementDesc}.${clothingPropGuard}${closeUpPropGuard}
 • PROP VARIATION INSTRUCTION: Introduce a restrained selection of relevant objects chosen naturally for the subject. Allow the specific prop objects, exact count (1–3 items max), scale, rotation, and micro-placement to vary naturally between generations. Props MUST remain secondary to the hero product and must NEVER form a repetitive stock still-life arrangement.`;
 }
 
@@ -520,12 +608,18 @@ export function getControlledVariationPromptText(level?: VariationLevel, toggles
 // ==========================================
 // 11. Technical Settings & Output Requirements
 // ==========================================
-export function formatTechnicalSettings(aspectRatio: AspectRatio): string {
+export function formatTechnicalSettings(aspectRatio: AspectRatio | string): string {
+  const normalizedRatio = normalizeAspectRatio(aspectRatio, '3:4');
+  const ratioLine =
+    normalizedRatio === '3:4'
+      ? '3:4 (Vertical Portrait Format — Shop Product Standard)'
+      : normalizedRatio;
+
   return `TECHNICAL & CAMERA HARDWARE SPECIFICATIONS:
 • Camera: Medium format digital camera system (Hasselblad H6D-100c / Phase One XF IQ4 150MP)
 • Optics: Prime macro product lens at f/5.6 for tack-sharp product resolution with natural optical falloff
 • Color & White Balance: Clean, authentic color reproduction matching the reference product accurately, true-to-life 5500K daylight balance, soft photographic contrast curve
-• Aspect Ratio: ${aspectRatio}`;
+• Aspect Ratio: ${ratioLine}`;
 }
 
 export function formatNegativeExclusions(
@@ -565,10 +659,45 @@ export function formatAdditionalInstructions(instructions?: string): string {
   return `\nADDITIONAL USER INSTRUCTIONS:\n${instructions.trim()}\n`;
 }
 
-import { getTemplateSection } from '../../utils/templateManager';
+// ==========================================
+// 12. Mode-Aware 3:4 Portrait Website Crop Safe Helper
+// ==========================================
+export function getDesignCloseUpCropSafeText(): string {
+  return `WEBSITE CROP-SAFE COMPOSITION (3:4 PORTRAIT ARTWORK SAFE ZONE — DESIGN CLOSE-UP):
+• Target Framing (3:4 Portrait): Compose for a vertical 3:4 portrait shop frame, using the central 3:4 portrait safe zone to protect 100% of the printed artwork rather than the full outer product outline (even if an image generator introduces minor aspect variance).
+• Complete Artwork & Typography Protection: Keep all essential printed graphics, illustrations, lettering, spelling, logos, and critical visual artwork comfortably inside the central 3:4 portrait safe area with safe inner clearance so nothing clips near the edges.
+• Outer Product Cropping Allowed: Intentionally allow non-essential outer physical product areas (such as garment sleeves, outer fabric, hem, vessel outer edges, or blank paper margins) to extend to or crop cleanly at the outer frame borders while keeping real surrounding product surface texture visible.
+• Balanced Close-Up Scale: Maintain bold ~70–85% artwork dominance inside the safe zone without forcing the camera back to fit the entire product.`;
+}
+
+export function buildWebsiteCropSafeBlock(options: PromptOptions): string {
+  if (!options.websiteCropSafe) return '';
+
+  const isCloseUp = isDesignCloseUpShot(options);
+  const rawSaved = getTemplateSection('photography', 'websiteCropSafe');
+  const defaultHeroText = DEFAULT_PHOTOGRAPHY_SECTIONS.websiteCropSafe.trim();
+  const isCustomNonLegacyTemplate =
+    Boolean(rawSaved && rawSaved.trim()) &&
+    !isLegacyObsoleteCropSafeTemplate(rawSaved) &&
+    rawSaved.trim() !== defaultHeroText;
+
+  if (isCloseUp) {
+    const closeUpDirective = getDesignCloseUpCropSafeText();
+    if (isCustomNonLegacyTemplate) {
+      return `\n\n${rawSaved.trim()}\n\n${closeUpDirective}`;
+    }
+    return `\n\n${closeUpDirective}`;
+  }
+
+  if (isCustomNonLegacyTemplate) {
+    return `\n\n${rawSaved.trim()}`;
+  }
+
+  return `\n\n${defaultHeroText}`;
+}
 
 // ==========================================
-// 12. Master Photography Prompt Assembler
+// 13. Master Photography Prompt Assembler
 // ==========================================
 export interface MasterPromptParams {
   productTypeName: string;
@@ -582,52 +711,103 @@ export function buildMasterPhotographyPrompt(
   options: PromptOptions,
   params: MasterPromptParams
 ): string {
-  const referenceHeader = formatReferenceHeader(options.hasReferenceImage, options.referenceImageName);
-  const themeText = getThemePromptText(options.theme);
-  const cameraText = getCameraPromptText(options);
-  const compositionText = getCompositionPromptText(options);
-  const backgroundText = getBackgroundPromptText(options.background, options.surface, options.colorPalette);
-  const surfaceText = getSurfacePromptText(options.surface, options.colorPalette, options);
-  const lightingText = getLightingPromptText(options.lightingStyle, options.shadowCharacter);
-  const propsText = getPropsPromptText(options);
-  const colorText = getColorPromptText(options.colorPalette);
-  const variationText = getControlledVariationPromptText(options.variationLevel, options.variationToggles);
-  const technicalSettings = formatTechnicalSettings(options.aspectRatio);
-  const negativeExclusions = formatNegativeExclusions(params.productSpecificExclusions || [], options);
-  const additionalInstructions = formatAdditionalInstructions(options.additionalInstructions);
+  const normalizedOptions: PromptOptions = {
+    ...options,
+    aspectRatio: normalizeAspectRatio(options.aspectRatio, '3:4'),
+  };
+  const isCloseUp = isDesignCloseUpShot(normalizedOptions);
 
-  const productFidelityBlock = params.productFidelityDirectives
+  const referenceHeader = formatReferenceHeader(
+    normalizedOptions.hasReferenceImage,
+    normalizedOptions.referenceImageName
+  );
+  const themeText = getThemePromptText(normalizedOptions.theme);
+  const cameraText = getCameraPromptText(normalizedOptions);
+  const compositionText = getCompositionPromptText(normalizedOptions);
+  const backgroundText = getBackgroundPromptText(
+    normalizedOptions.background,
+    normalizedOptions.surface,
+    normalizedOptions.colorPalette
+  );
+  const surfaceText = getSurfacePromptText(
+    normalizedOptions.surface,
+    normalizedOptions.colorPalette,
+    normalizedOptions
+  );
+  const lightingText = getLightingPromptText(
+    normalizedOptions.lightingStyle,
+    normalizedOptions.shadowCharacter
+  );
+  const propsText = getPropsPromptText(normalizedOptions);
+  const colorText = getColorPromptText(normalizedOptions.colorPalette);
+  const variationText = getControlledVariationPromptText(
+    normalizedOptions.variationLevel,
+    normalizedOptions.variationToggles
+  );
+  const technicalSettings = formatTechnicalSettings(normalizedOptions.aspectRatio);
+  const negativeExclusions = formatNegativeExclusions(
+    params.productSpecificExclusions || [],
+    normalizedOptions
+  );
+  const additionalInstructions = formatAdditionalInstructions(normalizedOptions.additionalInstructions);
+
+  const directives = isCloseUp
+    ? [
+        ...params.productFidelityDirectives,
+        'DESIGN CLOSE-UP ARTWORK CLARITY & PHYSICALITY: Closely photograph the actual printed artwork on the real physical product (~70–85% artwork coverage when proportions allow). Preserve exact typography, spelling, colors, graphic proportions, and print alignment with glare-free lighting and authentic surrounding physical surface texture—never substitute a flat digital graphic file or cropped mockup.',
+      ]
+    : params.productFidelityDirectives;
+
+  const productFidelityBlock = directives
     .map((directive) => `• ${directive}`)
     .join('\n');
 
   // Load custom or default template sections
-  const headerAndRole = getTemplateSection('photography', 'headerAndRole') || 'Commercial Editorial Product Photograph — Science of Gifts Studio';
-  const universalPreservation = getTemplateSection('photography', 'universalPreservation') || getUniversalPreservationRules();
-  
-  let productIdentification = getTemplateSection('photography', 'productIdentification') || `PRODUCT IDENTIFICATION:\n• Hero Product: {{productDescription}}\n• Product Category: {{productTypeName}}\n• Orientation & Staging: {{productOrientationText}}`;
+  const headerAndRole =
+    getTemplateSection('photography', 'headerAndRole') ||
+    'Commercial Editorial Product Photograph — Science of Gifts Studio';
+  const universalPreservation =
+    getTemplateSection('photography', 'universalPreservation') ||
+    getUniversalPreservationRules();
+
+  let productIdentification =
+    getTemplateSection('photography', 'productIdentification') ||
+    `PRODUCT IDENTIFICATION:\n• Hero Product: {{productDescription}}\n• Product Category: {{productTypeName}}\n• Orientation & Staging: {{productOrientationText}}`;
   productIdentification = productIdentification
     .replace(/\{\{productDescription\}\}/g, params.productDescription)
     .replace(/\{\{productTypeName\}\}/g, params.productTypeName)
     .replace(/\{\{productOrientationText\}\}/g, params.productOrientationText);
 
-  let productFidelityDirectives = getTemplateSection('photography', 'productFidelityDirectives') || `PRODUCT-SPECIFIC FIDELITY DIRECTIVES:\n{{productFidelityDirectives}}`;
-  productFidelityDirectives = productFidelityDirectives.replace(/\{\{productFidelityDirectives\}\}/g, productFidelityBlock);
+  let productFidelityDirectives =
+    getTemplateSection('photography', 'productFidelityDirectives') ||
+    `PRODUCT-SPECIFIC FIDELITY DIRECTIVES:\n{{productFidelityDirectives}}`;
+  productFidelityDirectives = productFidelityDirectives.replace(
+    /\{\{productFidelityDirectives\}\}/g,
+    productFidelityBlock
+  );
 
-  let creativeDirection = getTemplateSection('photography', 'creativeDirection') || `CREATIVE DIRECTION & THEME:\n• {{themeText}}`;
+  let creativeDirection =
+    getTemplateSection('photography', 'creativeDirection') ||
+    `CREATIVE DIRECTION & THEME:\n• {{themeText}}`;
   creativeDirection = creativeDirection.replace(/\{\{themeText\}\}/g, themeText);
 
-  let cameraBlock = getTemplateSection('photography', 'cameraAndPerspective') || `{{cameraText}}`;
+  let cameraBlock =
+    getTemplateSection('photography', 'cameraAndPerspective') || `{{cameraText}}`;
   cameraBlock = cameraBlock.replace(/\{\{cameraText\}\}/g, cameraText);
 
-  let compositionBlock = getTemplateSection('photography', 'compositionAndFraming') || `{{compositionText}}`;
+  let compositionBlock =
+    getTemplateSection('photography', 'compositionAndFraming') || `{{compositionText}}`;
   compositionBlock = compositionBlock.replace(/\{\{compositionText\}\}/g, compositionText);
 
-  let envBlock = getTemplateSection('photography', 'environmentAndSurfaces') || `ENVIRONMENT, BACKGROUND & SURFACE:\n• {{backgroundText}}\n• {{surfaceText}}`;
+  let envBlock =
+    getTemplateSection('photography', 'environmentAndSurfaces') ||
+    `ENVIRONMENT, BACKGROUND & SURFACE:\n• {{backgroundText}}\n• {{surfaceText}}`;
   envBlock = envBlock
     .replace(/\{\{backgroundText\}\}/g, backgroundText)
     .replace(/\{\{surfaceText\}\}/g, surfaceText);
 
-  let lightingBlock = getTemplateSection('photography', 'lightingAndShadows') || `{{lightingText}}`;
+  let lightingBlock =
+    getTemplateSection('photography', 'lightingAndShadows') || `{{lightingText}}`;
   lightingBlock = lightingBlock.replace(/\{\{lightingText\}\}/g, lightingText);
 
   let propsBlock = getTemplateSection('photography', 'stylingAndProps') || `{{propsText}}`;
@@ -636,34 +816,23 @@ export function buildMasterPhotographyPrompt(
   let colorBlock = getTemplateSection('photography', 'colorPalette') || `{{colorText}}`;
   colorBlock = colorBlock.replace(/\{\{colorText\}\}/g, colorText);
 
-  let variationBlock = getTemplateSection('photography', 'controlledVariation') || `{{variationText}}`;
+  let variationBlock =
+    getTemplateSection('photography', 'controlledVariation') || `{{variationText}}`;
   variationBlock = variationBlock.replace(/\{\{variationText\}\}/g, variationText);
 
-  let techBlock = getTemplateSection('photography', 'technicalSettings') || `{{technicalSettings}}`;
+  let techBlock =
+    getTemplateSection('photography', 'technicalSettings') || `{{technicalSettings}}`;
   techBlock = techBlock.replace(/\{\{technicalSettings\}\}/g, technicalSettings);
 
-  let cropSafeBlock = '';
-  if (options.websiteCropSafe) {
-    const cropSafeTemplate =
-      getTemplateSection('photography', 'websiteCropSafe') ||
-      `WEBSITE CROP-SAFE COMPOSITION (4:3 SAFE ZONE DIRECTIVE):
-• The generated source image is square (1:1), but will subsequently be displayed and cropped by the website container to approximately a 4:3 aspect ratio.
-• Treat the central 4:3 horizontal region as the essential visible safe zone.
-• Keep the entire hero product, its primary silhouette, and all vital physical details comfortably positioned within this central safe area.
-• Keep all product typography, logos, cover artwork, graphic illustrations, labels, and critical visual details well away from the top and bottom crop zones.
-• Do not place important features close to the top or bottom edges of the 1:1 frame; allow only non-essential background environment or surface texture to occupy areas that may be trimmed.
-• Maintain an attractive, premium, and balanced composition with natural breathing room without making the product unnecessarily small.
-• Ensure the final composition looks intentional, balanced, and complete both in the original square frame and after the 4:3 crop is applied.`;
+  const cropSafeBlock = buildWebsiteCropSafeBlock(normalizedOptions);
 
-    if (cropSafeTemplate && cropSafeTemplate.trim()) {
-      cropSafeBlock = `\n\n${cropSafeTemplate.trim()}`;
-    }
-  }
-
-  let negBlock = getTemplateSection('photography', 'negativeExclusions') || `{{negativeExclusions}}`;
+  let negBlock =
+    getTemplateSection('photography', 'negativeExclusions') || `{{negativeExclusions}}`;
   negBlock = negBlock.replace(/\{\{negativeExclusions\}\}/g, negativeExclusions);
 
-  const finalQuality = getTemplateSection('photography', 'finalQualityRequirement') || `FINAL OUTPUT REQUIREMENT:\nA finished, hyper-realistic commercial studio product photograph ready for publication in high-end editorial catalogs and boutique e-commerce galleries. The hero product must remain tack-sharp, authentic, and protected.`;
+  const finalQuality =
+    getTemplateSection('photography', 'finalQualityRequirement') ||
+    `FINAL OUTPUT REQUIREMENT:\nA finished, hyper-realistic commercial studio product photograph ready for publication in high-end editorial catalogs and boutique e-commerce galleries. The hero product must remain tack-sharp, authentic, and protected.`;
 
   return `${headerAndRole}
 

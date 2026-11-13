@@ -2,10 +2,14 @@ import {
   PromptOptions,
   ProductImagePromptTemplate,
   ProductOrientation,
+  ShotType,
 } from '../types';
 import { buildMasterPhotographyPrompt } from '../shared/options';
 
-function getNotebookOrientationText(orientation: ProductOrientation): string {
+function getNotebookOrientationText(orientation: ProductOrientation, shotType?: ShotType): string {
+  if (shotType === 'design-close-up') {
+    return 'Resting flat on the surface while the camera moves significantly closer in a clean perpendicular overhead view to tightly frame the cover artwork, title typography, foil stamping, or debossed illustration (~70–85% artwork coverage when proportions allow), keeping authentic bookcloth/paper texture and a subtle hint of cover edges or ribbon/elastic context visible without inventing any spine fold.';
+  }
   switch (orientation) {
     case 'flat-lay':
       return 'Overhead 90-degree flat-lay, lying flat on the surface with generous negative space, highlighting the full planar geometry of the front cover and its artwork.';
@@ -23,7 +27,7 @@ export function generateNotebookPrompt(options: PromptOptions): string {
   return buildMasterPhotographyPrompt(options, {
     productTypeName: 'Notebook / Journal',
     productDescription: 'A premium hardcover or softcover notebook / journal faithfully showcasing the exact cover artwork, typography, and bookbinding construction from the reference product.',
-    productOrientationText: getNotebookOrientationText(options.orientation),
+    productOrientationText: getNotebookOrientationText(options.orientation, options.shotType),
     productFidelityDirectives: [
       'PRESERVE EXACT COVER ARTWORK & TITLES: Faithfully reproduce the complete cover illustration, celestial/scientific chart, title typography, author/collection text, foil stamping, debossing, and exact background color from the reference notebook.',
       'ELASTIC CLOSURE & RIBBON MARKER FIDELITY: If visible in the reference image, accurately preserve the elastic closure band (its width, placement, tension, and color) and the silk/satin ribbon page marker extending gracefully from the binding.',

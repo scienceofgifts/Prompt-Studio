@@ -7,12 +7,27 @@ import {
   isClothingProduct,
   resolveClothingPresentation,
 } from '../image';
+import { normalizeAspectRatio } from './studioOptions';
 
 /**
  * Builds a prompt optimized for ChatGPT / DALL-E 3 / GPT-4o image generation and editing.
  */
 export function buildChatGPTPhotoPrompt(options: PromptOptions): string {
-  const basePrompt = buildImagePrompt(options);
+  const normalizedRatio = normalizeAspectRatio(options.aspectRatio, '3:4');
+  const normalizedOptions: PromptOptions = {
+    ...options,
+    aspectRatio: normalizedRatio,
+  };
+  const basePrompt = buildImagePrompt(normalizedOptions);
+  const ratioNote =
+    normalizedRatio === '3:4'
+      ? '3:4 vertical portrait aspect ratio (shop product standard)'
+      : `${normalizedRatio} aspect ratio`;
+  const cropSafeExecNote = normalizedOptions.websiteCropSafe
+    ? normalizedOptions.shotType === 'design-close-up'
+      ? '\n• Maintain 3:4 Portrait Artwork Crop Safety: Keep 100% of essential printed artwork and lettering inside the central 3:4 safe area while allowing outer physical product borders to crop naturally.'
+      : '\n• Maintain 3:4 Portrait Crop Safety: Keep the full product silhouette, handles, sleeves, and hoods inside the central 3:4 portrait safe area with roughly 8–12% edge clearance.'
+    : '';
 
   return `[CHATGPT IMAGE GENERATION & EDITING PROMPT (DALL-E 3 / GPT-4O OPTIMIZED)]
 
@@ -21,7 +36,7 @@ ${basePrompt}
 [CHATGPT EXECUTION DIRECTIVES]
 • Treat the attached reference product image as the authoritative source of truth for the physical item, artwork, typography, and color palette.
 • Strictly separate immutable product design elements from background, lighting, and surface staging.
-• Ensure crisp visual clarity, natural depth, and professional commercial staging matching the requested aspect ratio (${options.aspectRatio}).`;
+• Ensure crisp visual clarity, natural depth, and professional commercial staging matching the requested ${ratioNote}.${cropSafeExecNote}`;
 }
 
 function getDetailedOrientationDesc(
@@ -31,6 +46,10 @@ function getDetailedOrientationDesc(
 ): string {
   if (options && isClothingProduct(options.productType)) {
     return getClothingGeminiOrientationDesc(options);
+  }
+
+  if (options?.shotType === 'design-close-up') {
+    return 'Close studio composition tightly framing the actual printed or etched artwork (~70–85% artwork coverage when proportions allow), retaining tangible surrounding product surface, edges, or curvature so it reads unmistakably as a real physical object with crisp, glare-free typography.';
   }
 
   switch (orientation) {
@@ -66,13 +85,18 @@ function getDetailedOrientationDesc(
 function getDetailedCameraDesc(
   angle?: string,
   shot?: string,
-  ratio: string = '1:1',
+  ratio: string = '3:4',
   orientation?: string,
   productType?: string,
   options?: PromptOptions
 ): string {
+  const normalizedRatio = normalizeAspectRatio(ratio, '3:4');
   if (options && isClothingProduct(options.productType)) {
-    return getClothingGeminiCameraDesc(options);
+    return getClothingGeminiCameraDesc({ ...options, aspectRatio: normalizedRatio });
+  }
+
+  if (shot === 'design-close-up') {
+    return `Close macro product camera moved significantly closer directly facing the printed artwork (~70–85% artwork coverage when proportions allow), razor-sharp edge-to-edge typography and illustration clarity with natural surrounding product texture, ${normalizedRatio} vertical portrait aspect ratio.`;
   }
 
   let angleInstruction =
@@ -95,7 +119,7 @@ function getDetailedCameraDesc(
   }
 
   const shotText = shot ? shot.replace(/-/g, ' ') : 'hero product framing';
-  return `${angleInstruction}, ${shotText}, crisp edge definition, ${ratio} aspect ratio, gentle organic depth of field.`;
+  return `${angleInstruction}, ${shotText}, crisp edge definition, ${normalizedRatio} aspect ratio, gentle organic depth of field.`;
 }
 
 function getCleanEnvDesc(
@@ -260,33 +284,45 @@ export function buildGeminiPhotoPrompt(options: PromptOptions): string {
       break;
   }
 
+  const normalizedRatio = normalizeAspectRatio(options.aspectRatio, '3:4');
+  const normalizedOpts: PromptOptions = {
+    ...options,
+    aspectRatio: normalizedRatio,
+  };
+
   const orientationDesc = getDetailedOrientationDesc(
-    options.productType,
-    options.orientation,
-    options
+    normalizedOpts.productType,
+    normalizedOpts.orientation,
+    normalizedOpts
   );
   const cameraDesc = getDetailedCameraDesc(
-    options.cameraAngle,
-    options.shotType,
-    options.aspectRatio,
-    options.orientation,
-    options.productType,
-    options
+    normalizedOpts.cameraAngle,
+    normalizedOpts.shotType,
+    normalizedRatio,
+    normalizedOpts.orientation,
+    normalizedOpts.productType,
+    normalizedOpts
   );
   const envDesc = getCleanEnvDesc(
-    options.background,
-    options.surface,
-    options.lightingStyle,
-    options.props,
-    options.propLevel,
-    options.orientation,
-    options
+    normalizedOpts.background,
+    normalizedOpts.surface,
+    normalizedOpts.lightingStyle,
+    normalizedOpts.props,
+    normalizedOpts.propLevel,
+    normalizedOpts.orientation,
+    normalizedOpts
   );
-  const addText = options.additionalInstructions
-    ? `• Custom Staging Note: ${options.additionalInstructions}`
+  const addText = normalizedOpts.additionalInstructions
+    ? `• Custom Staging Note: ${normalizedOpts.additionalInstructions}`
     : '';
 
-  const plantInstruction = options.includePottedPlant
+  const cropSafeLine = normalizedOpts.websiteCropSafe
+    ? normalizedOpts.shotType === 'design-close-up'
+      ? '• Website Crop-Safe Composition (3:4 Portrait): Protect 100% of the important printed artwork, typography, and illustrations inside the central 3:4 portrait safe zone; outer physical product edges may crop cleanly while keeping authentic surface texture visible.\n'
+      : '• Website Crop-Safe Composition (3:4 Portrait): Keep the entire hero product silhouette—including handles, sleeves, hoods, caps, or ribbons—comfortably within the central 3:4 portrait safe area with ~8–12% edge clearance on all sides, without making the product look tiny.\n'
+    : '';
+
+  const plantInstruction = normalizedOpts.includePottedPlant
     ? '• Potted Plant Styling: Include one small, photorealistic potted plant as a secondary styling element, positioned naturally near a rear corner of the composition where appropriate. Use believable green foliage with naturally varied leaves and a tactile ceramic or stoneware pot with subtle glaze variation and authentic material texture. Ensure realistic proportions, lighting, perspective, and contact shadows. Keep the plant away from the hero product\'s important details and artwork. Allow the plant species, pot shape, and exact placement to vary naturally between photographs. No invented text, logos, or decorative graphics on the pot.\n'
     : '';
 
@@ -298,7 +334,7 @@ ${refText}
 • Product Fidelity & Color Treatment: ${keyFidelity}
 • Environment & Lighting: ${envDesc}
 • Prop Fidelity & Realistic Material Rendering: Secondary props (when present) must be believable physical objects with authentic material textures (grain, patina, glaze), natural highlights, and zero invented text, gibberish lettering, fake titles, logos, or labels.
-${plantInstruction}${addText ? `${addText}\n` : ''}• Camera & Format: ${cameraDesc}
+${cropSafeLine}${plantInstruction}${addText ? `${addText}\n` : ''}• Camera & Format: ${cameraDesc}
 • Quality Objective: Pristine, magazine-grade commercial still-life photography with rich tonal richness, deep clean blacks, luminous highlights, vivid artwork colors, and calm editorial elegance.
 • Explicit Exclusions: ${keyExclusions} No low-resolution artifacts, no unrequested props, no artificial distortion of product artwork, no invented text, logos, or gibberish lettering on any secondary prop.`;
 }

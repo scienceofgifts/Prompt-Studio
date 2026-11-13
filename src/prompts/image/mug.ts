@@ -2,10 +2,14 @@ import {
   PromptOptions,
   ProductImagePromptTemplate,
   ProductOrientation,
+  ShotType,
 } from '../types';
 import { buildMasterPhotographyPrompt } from '../shared/options';
 
-function getMugOrientationText(orientation: ProductOrientation): string {
+function getMugOrientationText(orientation: ProductOrientation, shotType?: ShotType): string {
+  if (shotType === 'design-close-up') {
+    return 'Resting firmly upright on its ceramic base while the camera moves significantly closer to prominently frame the printed wrap artwork (~70–85% artwork coverage across the curved cylinder face). Preserve authentic ceramic curvature, glaze highlights, and handle/rim context without glare obscuring typography.';
+  }
   switch (orientation) {
     case 'upright':
       return 'Standing upright on its base at a dignified eye-level perspective (15-degree slight downward tilt), showcasing the frontal printed artwork and handle profile clearly.';
@@ -23,7 +27,7 @@ export function generateMugPrompt(options: PromptOptions): string {
   return buildMasterPhotographyPrompt(options, {
     productTypeName: 'Ceramic Drinkware / Mug',
     productDescription: 'A premium ceramic mug featuring the exact graphic artwork, typography, colors, and physical silhouette from the reference product.',
-    productOrientationText: getMugOrientationText(options.orientation),
+    productOrientationText: getMugOrientationText(options.orientation, options.shotType),
     productFidelityDirectives: [
       'PRESERVE EXACT PHYSICAL FORM: Maintain the precise cylindrical proportions, outer diameter, wall thickness, rim profile, and base curve from the reference image.',
       'HANDLE ACCURACY: Faithfully preserve the exact shape, attachment points, and curve of the handle. Do NOT invent a different handle style, and do NOT add handles if none exist in the reference.',

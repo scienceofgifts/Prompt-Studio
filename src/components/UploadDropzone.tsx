@@ -1,14 +1,37 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
-import { Upload, Image as ImageIcon, Sparkles, X, CheckCircle2 } from 'lucide-react';
+import { Upload, Image as ImageIcon, Sparkles, X, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { SAMPLE_PRODUCTS } from '../data/sampleProducts';
-import { GenerationSettings, ProductType, SampleProduct } from '../types';
+import { GenerationSettings, SampleProduct } from '../types';
+
+export type ProductAnalysisStatus =
+  | 'idle'
+  | 'analyzing'
+  | 'recognized'
+  | 'unavailable'
+  | 'failed'
+  | 'sample';
+
+export interface ProductAnalysisSummary {
+  detectedLabel: string;
+  presentationSummary: string;
+  briefNotes?: string;
+  errorMessage?: string;
+  modelUsed?: string;
+  fromCache?: boolean;
+}
 
 interface UploadDropzoneProps {
   image: string | null;
   imageInfo: { name: string; size: string; width?: number; height?: number } | null;
-  onImageSelected: (dataUrl: string, info: { name: string; size: string; width?: number; height?: number }) => void;
+  onImageSelected: (
+    dataUrl: string,
+    info: { name: string; size: string; width?: number; height?: number },
+    meta?: { isSample?: boolean }
+  ) => void;
   onClear: () => void;
   onApplySampleSettings?: (settings: Partial<GenerationSettings>) => void;
+  analysisStatus?: ProductAnalysisStatus;
+  analysisSummary?: ProductAnalysisSummary | null;
 }
 
 export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
@@ -17,6 +40,8 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
   onImageSelected,
   onClear,
   onApplySampleSettings,
+  analysisStatus = 'idle',
+  analysisSummary = null,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -104,16 +129,21 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       processFile(e.target.files[0]);
+      e.target.value = '';
     }
   };
 
   const handleSelectSample = (sample: SampleProduct) => {
-    onImageSelected(sample.imageUrl, {
-      name: `${sample.title}.svg`,
-      size: 'Sample Product',
-      width: 800,
-      height: 800,
-    });
+    onImageSelected(
+      sample.imageUrl,
+      {
+        name: `${sample.title}.svg`,
+        size: 'Sample Product',
+        width: 800,
+        height: 800,
+      },
+      { isSample: true }
+    );
     if (onApplySampleSettings && sample.recommendedSettings) {
       onApplySampleSettings(sample.recommendedSettings);
     }
@@ -195,9 +225,75 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
                   : ''}
                 {imageInfo?.size}
               </p>
-              <p className="text-[11px] text-[#0f766e] font-medium mt-1">
-                ✓ Ready for editorial studio staging
-              </p>
+              {/* Compact Recognition & Staging Summary */}
+              {analysisStatus === 'analyzing' && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#f0f9ff] border border-[#bae6fd] text-[11px] font-medium text-[#0369a1]">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Analyzing product &amp; configuring camera setup...</span>
+                </div>
+              )}
+
+              {analysisStatus === 'recognized' && analysisSummary && (
+                <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] text-left">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                    <span className="inline-flex items-center gap-1 font-semibold text-[#166534]">
+                      <Sparkles className="w-3 h-3 text-[#0f766e]" />
+                      Detected: {analysisSummary.detectedLabel}
+                    </span>
+                    <span className="text-[#94a3b8]">•</span>
+                    <span className="text-[#1e293b] font-medium capitalize">
+                      {analysisSummary.presentationSummary}
+                    </span>
+                  </div>
+                  {(analysisSummary.briefNotes || analysisSummary.modelUsed) && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[#475569] mt-0.5">
+                      {analysisSummary.briefNotes && (
+                        <span className="truncate">{analysisSummary.briefNotes}</span>
+                      )}
+                      {analysisSummary.briefNotes && analysisSummary.modelUsed && (
+                        <span className="text-[#94a3b8]">•</span>
+                      )}
+                      {analysisSummary.modelUsed && (
+                        <span className="font-mono text-[#0f766e]">
+                          Model: {analysisSummary.modelUsed}
+                          {analysisSummary.fromCache ? ' (cached)' : ''}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {analysisStatus === 'sample' && analysisSummary && (
+                <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-[#f0f9ff] border border-[#bae6fd] text-left">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                    <span className="inline-flex items-center gap-1 font-semibold text-[#0369a1]">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Sample: {analysisSummary.detectedLabel}
+                    </span>
+                    <span className="text-[#94a3b8]">•</span>
+                    <span className="text-[#1e293b] font-medium capitalize">
+                      {analysisSummary.presentationSummary}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {(analysisStatus === 'unavailable' || analysisStatus === 'failed') && (
+                <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-[#fffbeb] border border-[#fde68a] text-left flex items-start gap-1.5 text-[11px] text-[#92400e]">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span>
+                    {analysisSummary?.errorMessage ||
+                      'Automatic recognition unavailable — configure product details manually below.'}
+                  </span>
+                </div>
+              )}
+
+              {analysisStatus === 'idle' && (
+                <p className="text-[11px] text-[#0f766e] font-medium mt-1">
+                  ✓ Ready for editorial studio staging
+                </p>
+              )}
             </div>
 
             {/* Action buttons */}
@@ -205,14 +301,14 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 text-xs font-medium text-[#334155] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#cbd5e1] rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-[#334155] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#cbd5e1] rounded-lg transition-colors cursor-pointer"
               >
                 Change Image
               </button>
               <button
                 type="button"
                 onClick={onClear}
-                className="p-1.5 text-[#64748b] hover:text-[#ef4444] hover:bg-[#fef2f2] rounded-lg transition-colors"
+                className="p-1.5 text-[#64748b] hover:text-[#ef4444] hover:bg-[#fef2f2] rounded-lg transition-colors cursor-pointer"
                 title="Remove image"
               >
                 <X className="w-4 h-4" />

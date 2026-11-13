@@ -42,14 +42,12 @@ export const DEFAULT_PHOTOGRAPHY_SECTIONS = {
 
   technicalSettings: `{{technicalSettings}}`,
 
-  websiteCropSafe: `WEBSITE CROP-SAFE COMPOSITION (4:3 SAFE ZONE DIRECTIVE):
-• The generated source image is square (1:1), but will subsequently be displayed and cropped by the website container to approximately a 4:3 aspect ratio.
-• Treat the central 4:3 horizontal region as the essential visible safe zone.
-• Keep the entire hero product, its primary silhouette, and all vital physical details comfortably positioned within this central safe area.
-• Keep all product typography, logos, cover artwork, graphic illustrations, labels, and critical visual details well away from the top and bottom crop zones.
-• Do not place important features close to the top or bottom edges of the 1:1 frame; allow only non-essential background environment or surface texture to occupy areas that may be trimmed.
-• Maintain an attractive, premium, and balanced composition with natural breathing room without making the product unnecessarily small.
-• Ensure the final composition looks intentional, balanced, and complete both in the original square frame and after the 4:3 crop is applied.`,
+  websiteCropSafe: `WEBSITE CROP-SAFE COMPOSITION (3:4 PORTRAIT SAFE ZONE DIRECTIVE):
+• Target Framing (3:4 Portrait): Compose for a vertical 3:4 portrait shop frame, keeping all critical product content safely positioned inside the central 3:4 portrait safe zone (even if an image generator produces minor aspect-ratio variance).
+• Silhouette & Edge Clearance: Keep the entire hero product, its primary silhouette, and all vital details comfortably inside the central safe area with approximately 8–12% clean edge clearance on all sides.
+• Protruding Parts Allowance: Leave extra breathing room around protruding physical features—such as mug handles, garment sleeves, hoodies and hoods, caps, loops, or extending ribbons—so nothing clips or crowds the borders.
+• Confident Editorial Scale: Keep the product well-proportioned and visually engaging inside the safe zone without making the item look unnecessarily small or distant.
+• Trim-Tolerant Edges: Allow only non-essential background wall, studio lighting falloff, or surface texture to occupy the outer 8–12% margin.`,
 
   negativeExclusions: `{{negativeExclusions}}`,
 
@@ -180,8 +178,8 @@ export const GENERATOR_TEMPLATES_CONFIG: Record<GeneratorId, GeneratorTemplateCo
       },
       websiteCropSafe: {
         id: 'websiteCropSafe',
-        label: 'Website Crop-Safe Composition (4:3 Safe Zone)',
-        description: 'Directives ensuring hero products, logos, and artwork remain centered inside the 4:3 safe zone when displayed in website containers.',
+        label: 'Website Crop-Safe Composition (3:4 Portrait Safe Zone)',
+        description: 'Directives protecting hero products inside the 3:4 portrait safe area (and protecting full artwork in Design Close-Up mode).',
         category: 'photography',
       },
       negativeExclusions: {

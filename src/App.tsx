@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { StudioNavigation } from './components/StudioNavigation';
-import { UploadDropzone } from './components/UploadDropzone';
+import {
+  UploadDropzone,
+  ProductAnalysisStatus,
+  ProductAnalysisSummary,
+} from './components/UploadDropzone';
 import { ConfigurationControls } from './components/ConfigurationControls';
 import { GiftGuideHeroControls } from './components/GiftGuideHeroControls';
 import { PromptResultView, ResultActiveChip } from './components/PromptResultView';
@@ -10,6 +14,15 @@ import { SettingsPage } from './components/settings/SettingsPage';
 import { StyleLibraryModal } from './components/writing/StyleLibraryModal';
 import { WritingStyleKey } from './prompts/writing/styles';
 import { TEMPLATES_UPDATED_EVENT } from './utils/templateManager';
+import { analyzeProductImage } from './utils/imageAnalyzer';
+import { resolveAutoPromptUpdate } from './utils/promptEditGuard';
+import {
+  applySmartSetupToSettings,
+  CURATED_STUDIO_LOOKS,
+  CuratedStudioLook,
+  formatPresentationSummary,
+  getNextStudioLook,
+} from './prompts/shared/smartSetup';
 import {
   GenerationSettings,
   GiftGuideHeroPromptOptions,
@@ -18,6 +31,7 @@ import {
   STUDIO_BACKGROUNDS,
   STUDIO_SURFACES,
   HERO_PROP_DENSITY_OPTIONS,
+  normalizeAspectRatio,
   buildChatGPTPhotoPrompt,
   buildGeminiPhotoPrompt,
   buildGiftGuideHeroPrompt,
@@ -32,7 +46,7 @@ const DEFAULT_IMAGE_SETTINGS: GenerationSettings = {
   background: 'gradient-wall-neutral-surface',
   surface: 'editorial-tabletop',
   props: 'subtle-historical',
-  aspectRatio: '1:1',
+  aspectRatio: '3:4',
   additionalInstructions: '',
   theme: 'editorial-still-life',
   productPosition: 'centered',
@@ -90,7 +104,39 @@ export default function App() {
     width?: number;
     height?: number;
   } | null>(null);
+  const imageInfoRef = useRef<{
+    name: string;
+    size: string;
+    width?: number;
+    height?: number;
+  } | null>(null);
   const [imageSettings, setImageSettings] = useState<GenerationSettings>(DEFAULT_IMAGE_SETTINGS);
+  const imageSettingsRef = useRef<GenerationSettings>(DEFAULT_IMAGE_SETTINGS);
+  imageSettingsRef.current = imageSettings;
+
+  // Smart Setup & Recognition State (runs once per newly uploaded image)
+  const uploadSessionRef = useRef<number>(0);
+  const recognitionAbortRef = useRef<AbortController | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<ProductAnalysisStatus>('idle');
+  const [analysisSummary, setAnalysisSummary] = useState<ProductAnalysisSummary | null>(null);
+
+  // One-Click Next Look State
+  const [usedLookIds, setUsedLookIds] = useState<string[]>([]);
+  const [currentLook, setCurrentLook] = useState<CuratedStudioLook | null>(() =>
+    CURATED_STUDIO_LOOKS.find(
+      (look) =>
+        look.background === DEFAULT_IMAGE_SETTINGS.background &&
+        look.surface === DEFAULT_IMAGE_SETTINGS.surface
+    ) || null
+  );
+  const [lookCounter, setLookCounter] = useState<{ current: number; total: number } | null>(() => {
+    const idx = CURATED_STUDIO_LOOKS.findIndex(
+      (look) =>
+        look.background === DEFAULT_IMAGE_SETTINGS.background &&
+        look.surface === DEFAULT_IMAGE_SETTINGS.surface
+    );
+    return idx >= 0 ? { current: idx + 1, total: CURATED_STUDIO_LOOKS.length } : null;
+  });
 
   const [chatgptPrompt, setChatgptPrompt] = useState<string>(() =>
     buildChatGPTPhotoPrompt({
@@ -105,14 +151,108 @@ export default function App() {
     })
   );
 
-  const updatePhotoPrompts = (settings: GenerationSettings, hasRef: boolean, refName?: string) => {
+  // Manual Prompt Edit Safeguard State
+  const [manualEdits, setManualEdits] = useState<{ chatgpt: boolean; gemini: boolean }>({
+    chatgpt: false,
+    gemini: false,
+  });
+  const [pendingAutoPrompts, setPendingAutoPrompts] = useState<{
+    chatgpt: string | null;
+    gemini: string | null;
+  }>({ chatgpt: null, gemini: null });
+
+  const chatgptPromptRef = useRef<string>(chatgptPrompt);
+  const geminiPromptRef = useRef<string>(geminiPrompt);
+  const manualEditsRef = useRef<{ chatgpt: boolean; gemini: boolean }>(manualEdits);
+  chatgptPromptRef.current = chatgptPrompt;
+  geminiPromptRef.current = geminiPrompt;
+  manualEditsRef.current = manualEdits;
+
+  const updatePhotoPrompts = (
+    settings: GenerationSettings,
+    hasRef: boolean,
+    refName?: string,
+    forceOverwrite = false
+  ) => {
     const opts = {
       ...settings,
+      aspectRatio: normalizeAspectRatio(settings.aspectRatio, '3:4'),
       hasReferenceImage: hasRef,
       referenceImageName: refName,
     };
-    setChatgptPrompt(buildChatGPTPhotoPrompt(opts));
-    setGeminiPrompt(buildGeminiPhotoPrompt(opts));
+    const generatedChatgpt = buildChatGPTPhotoPrompt(opts);
+    const generatedGemini = buildGeminiPhotoPrompt(opts);
+
+    if (forceOverwrite) {
+      setChatgptPrompt(generatedChatgpt);
+      setGeminiPrompt(generatedGemini);
+      chatgptPromptRef.current = generatedChatgpt;
+      geminiPromptRef.current = generatedGemini;
+      const clearedEdits = { chatgpt: false, gemini: false };
+      manualEditsRef.current = clearedEdits;
+      setManualEdits(clearedEdits);
+      setPendingAutoPrompts({ chatgpt: null, gemini: null });
+      return;
+    }
+
+    const resolved = resolveAutoPromptUpdate(
+      {
+        chatgptPrompt: chatgptPromptRef.current,
+        geminiPrompt: geminiPromptRef.current,
+        manualEdits: manualEditsRef.current,
+        pendingAutoPrompts,
+      },
+      {
+        chatgpt: generatedChatgpt,
+        gemini: generatedGemini,
+      }
+    );
+
+    setChatgptPrompt(resolved.chatgptPrompt);
+    setGeminiPrompt(resolved.geminiPrompt);
+    chatgptPromptRef.current = resolved.chatgptPrompt;
+    geminiPromptRef.current = resolved.geminiPrompt;
+    setPendingAutoPrompts(resolved.pendingAutoPrompts);
+  };
+
+  const handleManualChatgptChange = (newPrompt: string) => {
+    setChatgptPrompt(newPrompt);
+    chatgptPromptRef.current = newPrompt;
+    const nextEdits = { ...manualEditsRef.current, chatgpt: true };
+    manualEditsRef.current = nextEdits;
+    setManualEdits(nextEdits);
+    setPendingAutoPrompts((prev) => ({ ...prev, chatgpt: null }));
+  };
+
+  const handleManualGeminiChange = (newPrompt: string) => {
+    setGeminiPrompt(newPrompt);
+    geminiPromptRef.current = newPrompt;
+    const nextEdits = { ...manualEditsRef.current, gemini: true };
+    manualEditsRef.current = nextEdits;
+    setManualEdits(nextEdits);
+    setPendingAutoPrompts((prev) => ({ ...prev, gemini: null }));
+  };
+
+  const handleApplyPendingAutoPrompt = (tab: 'chatgpt' | 'gemini') => {
+    const pendingVal = pendingAutoPrompts[tab];
+    if (!pendingVal) return;
+
+    if (tab === 'chatgpt') {
+      setChatgptPrompt(pendingVal);
+      chatgptPromptRef.current = pendingVal;
+    } else {
+      setGeminiPrompt(pendingVal);
+      geminiPromptRef.current = pendingVal;
+    }
+
+    const nextEdits = { ...manualEditsRef.current, [tab]: false };
+    manualEditsRef.current = nextEdits;
+    setManualEdits(nextEdits);
+    setPendingAutoPrompts((prev) => ({ ...prev, [tab]: null }));
+  };
+
+  const handleDismissPendingAutoPrompt = (tab: 'chatgpt' | 'gemini') => {
+    setPendingAutoPrompts((prev) => ({ ...prev, [tab]: null }));
   };
 
   // ==========================================
@@ -174,37 +314,150 @@ export default function App() {
   // ==========================================
   // Image Handlers
   // ==========================================
-  const handleImageSelected = (
+  const handleImageSelected = async (
     dataUrl: string,
-    info: { name: string; size: string; width?: number; height?: number }
+    info: { name: string; size: string; width?: number; height?: number },
+    meta?: { isSample?: boolean }
   ) => {
+    if (recognitionAbortRef.current) {
+      recognitionAbortRef.current.abort();
+      recognitionAbortRef.current = null;
+    }
+
+    const sessionId = ++uploadSessionRef.current;
     setUploadedImage(dataUrl);
     setImageInfo(info);
-    updatePhotoPrompts(imageSettings, true, info.name);
+    imageInfoRef.current = info;
+    setUsedLookIds([]);
+    setAnalysisSummary(null);
+
+    if (meta?.isSample) {
+      setAnalysisStatus('sample');
+      updatePhotoPrompts(imageSettingsRef.current, true, info.name);
+      return;
+    }
+
+    // Immediate prompt update with current settings while recognition runs once
+    updatePhotoPrompts(imageSettingsRef.current, true, info.name);
+    setAnalysisStatus('analyzing');
+
+    const controller = new AbortController();
+    recognitionAbortRef.current = controller;
+
+    const outcome = await analyzeProductImage(dataUrl, info.name, {
+      signal: controller.signal,
+    });
+
+    // Ignore stale or aborted response if user cleared or replaced the image
+    if (uploadSessionRef.current !== sessionId) {
+      return;
+    }
+    if (!outcome.ok && outcome.reason === 'aborted') {
+      return;
+    }
+
+    if (outcome.ok) {
+      const smartSettings = applySmartSetupToSettings(
+        outcome.recognition,
+        imageSettingsRef.current
+      );
+      setImageSettings(smartSettings);
+      imageSettingsRef.current = smartSettings;
+      updatePhotoPrompts(smartSettings, true, info.name);
+
+      setAnalysisStatus('recognized');
+      setAnalysisSummary({
+        detectedLabel: outcome.recognition.detectedLabel,
+        presentationSummary: formatPresentationSummary(smartSettings),
+        briefNotes: outcome.recognition.briefNotes || undefined,
+        modelUsed: outcome.modelUsed,
+        fromCache: outcome.fromCache,
+      });
+    } else if (outcome.reason !== 'aborted') {
+      setAnalysisStatus(outcome.reason);
+      setAnalysisSummary({
+        detectedLabel: '',
+        presentationSummary: '',
+        errorMessage: outcome.message,
+      });
+    }
   };
 
   const handleClearImage = () => {
+    if (recognitionAbortRef.current) {
+      recognitionAbortRef.current.abort();
+      recognitionAbortRef.current = null;
+    }
+    uploadSessionRef.current += 1;
     setUploadedImage(null);
     setImageInfo(null);
+    imageInfoRef.current = null;
+    setAnalysisStatus('idle');
+    setAnalysisSummary(null);
+    setUsedLookIds([]);
     updatePhotoPrompts(imageSettings, false);
   };
 
   const handleImageSettingsChange = (newSettings: GenerationSettings) => {
     setImageSettings(newSettings);
-    updatePhotoPrompts(newSettings, Boolean(uploadedImage), imageInfo?.name);
+    imageSettingsRef.current = newSettings;
+    if (analysisStatus === 'recognized' && analysisSummary) {
+      setAnalysisSummary({
+        ...analysisSummary,
+        presentationSummary: formatPresentationSummary(newSettings),
+      });
+    }
+    updatePhotoPrompts(newSettings, Boolean(uploadedImage), imageInfoRef.current?.name);
   };
 
   const handleApplySampleSettings = (sampleSettings: Partial<GenerationSettings>) => {
-    const newSettings = {
-      ...imageSettings,
+    const newSettings: GenerationSettings = {
+      ...imageSettingsRef.current,
       ...sampleSettings,
+      aspectRatio: normalizeAspectRatio(
+        sampleSettings.aspectRatio ?? imageSettingsRef.current.aspectRatio,
+        '3:4'
+      ),
     };
     setImageSettings(newSettings);
-    updatePhotoPrompts(newSettings, Boolean(uploadedImage), imageInfo?.name);
+    imageSettingsRef.current = newSettings;
+    const matchedLookIdx = CURATED_STUDIO_LOOKS.findIndex(
+      (look) => look.background === newSettings.background && look.surface === newSettings.surface
+    );
+    setCurrentLook(matchedLookIdx >= 0 ? CURATED_STUDIO_LOOKS[matchedLookIdx] : null);
+    setLookCounter(
+      matchedLookIdx >= 0
+        ? { current: matchedLookIdx + 1, total: CURATED_STUDIO_LOOKS.length }
+        : null
+    );
+    setAnalysisStatus('sample');
+    setAnalysisSummary({
+      detectedLabel: newSettings.productType,
+      presentationSummary: formatPresentationSummary(newSettings),
+    });
+    updatePhotoPrompts(newSettings, true, imageInfoRef.current?.name);
+  };
+
+  const handleNextLook = () => {
+    const result = getNextStudioLook(imageSettings, usedLookIds, currentLook?.id);
+    setImageSettings(result.nextSettings);
+    imageSettingsRef.current = result.nextSettings;
+    setUsedLookIds(result.nextUsedLookIds);
+    setCurrentLook(result.look);
+    setLookCounter({ current: result.lookNumber, total: result.totalLooks });
+
+    if (analysisStatus === 'recognized' && analysisSummary) {
+      setAnalysisSummary({
+        ...analysisSummary,
+        presentationSummary: formatPresentationSummary(result.nextSettings),
+      });
+    }
+
+    updatePhotoPrompts(result.nextSettings, Boolean(uploadedImage), imageInfoRef.current?.name);
   };
 
   const handleGenerateImagePrompt = () => {
-    updatePhotoPrompts(imageSettings, Boolean(uploadedImage), imageInfo?.name);
+    updatePhotoPrompts(imageSettings, Boolean(uploadedImage), imageInfo?.name, true);
   };
 
   // ==========================================
@@ -328,7 +581,7 @@ export default function App() {
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#0284c7]" />
-                  Zero API Keys or Subscriptions
+                  Smart Auto-Setup &amp; Manual Overrides
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e2e8f0] shadow-xs">
                   <Sparkles className="w-3.5 h-3.5 text-[#d97706]" />
@@ -359,6 +612,8 @@ export default function App() {
                         onImageSelected={handleImageSelected}
                         onClear={handleClearImage}
                         onApplySampleSettings={handleApplySampleSettings}
+                        analysisStatus={analysisStatus}
+                        analysisSummary={analysisSummary}
                       />
                     </div>
 
@@ -408,13 +663,23 @@ export default function App() {
                   onPromptChange={activeTool !== 'product-photography' ? onCurrentPromptChange : undefined}
                   chatgptPrompt={activeTool === 'product-photography' ? chatgptPrompt : undefined}
                   geminiPrompt={activeTool === 'product-photography' ? geminiPrompt : undefined}
-                  onChatgptPromptChange={activeTool === 'product-photography' ? setChatgptPrompt : undefined}
-                  onGeminiPromptChange={activeTool === 'product-photography' ? setGeminiPrompt : undefined}
+                  onChatgptPromptChange={
+                    activeTool === 'product-photography' ? handleManualChatgptChange : undefined
+                  }
+                  onGeminiPromptChange={
+                    activeTool === 'product-photography' ? handleManualGeminiChange : undefined
+                  }
                   onClear={
                     activeTool === 'product-photography'
                       ? () => {
                           setChatgptPrompt('');
                           setGeminiPrompt('');
+                          chatgptPromptRef.current = '';
+                          geminiPromptRef.current = '';
+                          const clearedEdits = { chatgpt: false, gemini: false };
+                          manualEditsRef.current = clearedEdits;
+                          setManualEdits(clearedEdits);
+                          setPendingAutoPrompts({ chatgpt: null, gemini: null });
                         }
                       : onCurrentClear
                   }
@@ -429,6 +694,24 @@ export default function App() {
                   imageInfo={activeTool === 'product-photography' ? imageInfo : null}
                   settings={activeTool === 'product-photography' ? imageSettings : undefined}
                   activeChips={activeTool !== 'product-photography' ? currentActiveChips : undefined}
+                  onNextLook={activeTool === 'product-photography' ? handleNextLook : undefined}
+                  currentLookName={activeTool === 'product-photography' ? currentLook?.name || null : null}
+                  currentLookSubtitle={activeTool === 'product-photography' ? currentLook?.subtitle || null : null}
+                  lookCounter={activeTool === 'product-photography' ? lookCounter : null}
+                  isChatgptManuallyEdited={activeTool === 'product-photography' ? manualEdits.chatgpt : false}
+                  isGeminiManuallyEdited={activeTool === 'product-photography' ? manualEdits.gemini : false}
+                  pendingChatgptAutoPrompt={
+                    activeTool === 'product-photography' ? pendingAutoPrompts.chatgpt : null
+                  }
+                  pendingGeminiAutoPrompt={
+                    activeTool === 'product-photography' ? pendingAutoPrompts.gemini : null
+                  }
+                  onApplyPendingAutoPrompt={
+                    activeTool === 'product-photography' ? handleApplyPendingAutoPrompt : undefined
+                  }
+                  onDismissPendingAutoPrompt={
+                    activeTool === 'product-photography' ? handleDismissPendingAutoPrompt : undefined
+                  }
                 />
               </div>
             </div>

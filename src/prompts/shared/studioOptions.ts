@@ -83,7 +83,19 @@ export const STUDIO_SURFACES: StudioSurfaceOption[] = [
 
 export const STUDIO_ASPECT_RATIOS: StudioAspectRatioOption[] = [
   { id: '1:1', label: '1:1', ratioDesc: 'Square / E-commerce', shapeClass: 'w-5 h-5' },
-  { id: '4:5', label: '4:5', ratioDesc: 'Editorial Portrait', shapeClass: 'w-4 h-5' },
+  { id: '3:4', label: '3:4', ratioDesc: 'Portrait (Shop)', shapeClass: 'w-[18px] h-6' },
   { id: '3:2', label: '3:2', ratioDesc: 'Classic Catalog', shapeClass: 'w-6 h-4' },
   { id: '16:9', label: '16:9', ratioDesc: 'Widescreen Banner', shapeClass: 'w-7 h-4' },
 ];
+
+/**
+ * Safely maps legacy saved aspect ratios (such as '4:5') to the updated '3:4' portrait standard.
+ */
+export function normalizeAspectRatio(
+  ratio?: string | null,
+  fallback: AspectRatio = '3:4'
+): AspectRatio {
+  if (ratio === '4:5' || ratio === '3:4') return '3:4';
+  if (ratio === '1:1' || ratio === '3:2' || ratio === '16:9') return ratio;
+  return fallback;
+}

@@ -2,10 +2,14 @@ import {
   PromptOptions,
   ProductImagePromptTemplate,
   ProductOrientation,
+  ShotType,
 } from '../types';
 import { buildMasterPhotographyPrompt } from '../shared/options';
 
-function getGlassOrientationText(orientation: ProductOrientation): string {
+function getGlassOrientationText(orientation: ProductOrientation, shotType?: ShotType): string {
+  if (shotType === 'design-close-up') {
+    return 'Standing firmly upright while the camera frames closely around the printed or etched artwork on the curved glass wall (~70–85% artwork coverage across the front face), maintaining clear glass refraction, crisp typography, and subtle rim/base physical context without specular glare obscuring the design.';
+  }
   switch (orientation) {
     case 'upright':
       return 'Standing upright on its heavy glass base at an eye-level studio perspective (10-15 degree downward angle), catching clean rim highlights and showing printed artwork legibly.';
@@ -23,7 +27,7 @@ export function generateGlassPrompt(options: PromptOptions): string {
   return buildMasterPhotographyPrompt(options, {
     productTypeName: 'Glassware',
     productDescription: 'A premium glassware tumbler or drinking glass faithfully reproducing the physical silhouette, glass clarity, and printed artwork from the reference image.',
-    productOrientationText: getGlassOrientationText(options.orientation),
+    productOrientationText: getGlassOrientationText(options.orientation, options.shotType),
     productFidelityDirectives: [
       'PRESERVE EXACT PHYSICAL FORM: Preserve the precise cylindrical or tapered silhouette, base sham weight, wall thickness, and polished rim contour from the reference glass.',
       'PRESERVE PRINTED & ETCHED ARTWORK: Faithfully replicate all screen-printed graphics, enamel typography, frosted etchings, measurements, and logos with razor-sharp precision and correct curvature wrap around the glass.',

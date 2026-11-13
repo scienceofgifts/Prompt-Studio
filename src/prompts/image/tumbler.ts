@@ -2,10 +2,14 @@ import {
   PromptOptions,
   ProductImagePromptTemplate,
   ProductOrientation,
+  ShotType,
 } from '../types';
 import { buildMasterPhotographyPrompt } from '../shared/options';
 
-function getTumblerOrientationText(orientation: ProductOrientation): string {
+function getTumblerOrientationText(orientation: ProductOrientation, shotType?: ShotType): string {
+  if (shotType === 'design-close-up') {
+    return 'Standing firmly upright while the camera moves significantly closer to prominently frame the printed or engraved design on the curved insulated surface (~70–85% artwork coverage where wrap geometry allows). Retain authentic cylinder curvature, powder-coat or enamel finish, and subtle rim/lid context without glare hiding text.';
+  }
   switch (orientation) {
     case 'upright':
       return 'Standing upright at a slight 15-degree downward angle, revealing both the frontal printed artwork and the clean architectural contour of the transparent lid.';
@@ -23,7 +27,7 @@ export function generateTumblerPrompt(options: PromptOptions): string {
   return buildMasterPhotographyPrompt(options, {
     productTypeName: 'Travel Tumbler',
     productDescription: 'A premium travel tumbler or insulated beverage tumbler faithfully reproducing the conical/cylindrical taper, splash-proof lid, and printed artwork from the reference image.',
-    productOrientationText: getTumblerOrientationText(options.orientation),
+    productOrientationText: getTumblerOrientationText(options.orientation, options.shotType),
     productFidelityDirectives: [
       'PRESERVE EXACT PHYSICAL FORM: Preserve the specific taper, cup-holder compatible base, upper diameter, and rim lip geometry from the reference tumbler.',
       'LID & DRINKING SPOUT ACCURACY: Accurately reproduce the clear Tritan or acrylic press-in lid, magnetic slider, sipping aperture, and silicone gasket ring without inventing different lid models.',

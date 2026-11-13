@@ -52,6 +52,7 @@ import {
   STUDIO_ASPECT_RATIOS,
   STUDIO_BACKGROUNDS,
   STUDIO_SURFACES,
+  normalizeAspectRatio,
 } from '../types';
 import {
   getProductTypes,
@@ -71,16 +72,11 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
   onGenerate,
   hasImage,
 }) => {
-  // Collapsible section state for progressive disclosure
+  // Collapsible advanced studio controls drawer (keeps standard workflow minimal)
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [openSection, setOpenSection] = useState<
-    'product' | 'camera' | 'environment' | 'lighting' | 'props' | 'variation' | 'output'
-  >('product');
-
-  const toggleSection = (
-    section: 'product' | 'camera' | 'environment' | 'lighting' | 'props' | 'variation' | 'output'
-  ) => {
-    setOpenSection(openSection === section ? 'product' : section);
-  };
+    'theme' | 'camera' | 'environment' | 'lighting' | 'props' | 'variation'
+  >('environment');
 
   const updateSetting = <K extends keyof GenerationSettings>(
     key: K,
@@ -159,7 +155,7 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
       background: 'gradient-wall-neutral-surface',
       surface: 'editorial-tabletop',
       props: 'subtle-historical',
-      aspectRatio: '1:1',
+      aspectRatio: '3:4',
       additionalInstructions: '',
       theme: 'editorial-still-life',
       productPosition: 'centered',
@@ -218,6 +214,7 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
 
   const shotTypes: { id: ShotType; label: string }[] = [
     { id: 'hero-product', label: 'Hero Product Shot' },
+    { id: 'design-close-up', label: 'Design Close-Up' },
     { id: 'standard-catalog', label: 'Standard Catalog' },
     { id: 'editorial-still-life', label: 'Editorial Still Life' },
     { id: 'detail-oriented', label: 'Detail & Texture Focus' },
@@ -359,41 +356,10 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
         </button>
       </div>
 
-      {/* Progressive Disclosure Section Switcher */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
-        {[
-          { id: 'product', label: '1. Product & Theme', icon: <Box className="w-3.5 h-3.5" /> },
-          { id: 'camera', label: '2. Camera & View', icon: <Camera className="w-3.5 h-3.5" /> },
-          { id: 'environment', label: '3. Environment & Color', icon: <Palette className="w-3.5 h-3.5" /> },
-          { id: 'lighting', label: '4. Lighting', icon: <Sun className="w-3.5 h-3.5" /> },
-          { id: 'props', label: '5. Props & Styling', icon: <Sparkles className="w-3.5 h-3.5" /> },
-          { id: 'variation', label: '6. Variation', icon: <Sliders className="w-3.5 h-3.5" /> },
-          { id: 'output', label: '7. Ratio & Notes', icon: <FileText className="w-3.5 h-3.5" /> },
-        ].map((sec) => {
-          const isActive = openSection === sec.id;
-          return (
-            <button
-              key={sec.id}
-              type="button"
-              onClick={() => setOpenSection(sec.id as any)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-white text-[#0284c7] shadow-xs border border-[#bae6fd] ring-1 ring-[#0284c7]/20'
-                  : 'text-[#64748b] hover:text-[#0f172a] hover:bg-white/60'
-              }`}
-            >
-              {sec.icon}
-              <span>{sec.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* ==========================================
-          SECTION 1: PRODUCT & THEME
+          ESSENTIAL CONTROLS (Always Visible)
          ========================================== */}
-      {openSection === 'product' && (
-        <div className="space-y-5 pt-2">
+      <div className="space-y-5 pt-1">
           {/* Product Type Grid */}
           <div>
             <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center justify-between mb-2">
@@ -548,39 +514,263 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
             </div>
           )}
 
-          {/* High-Level Theme / Art Direction */}
+          {/* Quick Shot Framing Mode (Hero vs Design Close-Up) */}
           <div>
-            <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5 mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#0284c7]" />
-              High-Level Art Direction & Theme
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {themes.map((th) => {
-                const isSelected = settings.theme === th.id;
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5">
+                <Camera className="w-3.5 h-3.5 text-[#0284c7]" />
+                Shot Mode
+              </label>
+              <span className="text-[11px] text-[#64748b]">
+                {settings.shotType === 'design-close-up'
+                  ? 'Tight artwork focus (~70–85%)'
+                  : '1-click switch without reconfiguring'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => updateSetting('shotType', 'hero-product')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  (settings.shotType || 'hero-product') !== 'design-close-up'
+                    ? 'border-[#0284c7] bg-[#f0f9ff] ring-1 ring-[#0284c7]'
+                    : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
+                }`}
+              >
+                <p
+                  className={`text-xs font-bold ${
+                    (settings.shotType || 'hero-product') !== 'design-close-up'
+                      ? 'text-[#0369a1]'
+                      : 'text-[#1e293b]'
+                  }`}
+                >
+                  {(settings.shotType || 'hero-product') === 'hero-product'
+                    ? 'Hero Product'
+                    : `Hero / ${(settings.shotType || 'hero-product').replace(/-/g, ' ')}`}
+                </p>
+                <p className="text-[10px] text-[#64748b] mt-0.5 leading-tight">
+                  Full physical product &amp; studio environment
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => updateSetting('shotType', 'design-close-up')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  settings.shotType === 'design-close-up'
+                    ? 'border-[#0284c7] bg-[#f0f9ff] ring-1 ring-[#0284c7]'
+                    : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
+                }`}
+              >
+                <p
+                  className={`text-xs font-bold ${
+                    settings.shotType === 'design-close-up' ? 'text-[#0369a1]' : 'text-[#1e293b]'
+                  }`}
+                >
+                  Design Close-Up
+                </p>
+                <p className="text-[10px] text-[#64748b] mt-0.5 leading-tight">
+                  Closely frames actual printed artwork on product
+                </p>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Aspect Ratio Selector */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-[#0284c7]" />
+                Aspect Ratio
+              </label>
+              <span className="text-[11px] text-[#64748b]">Preserved across Next Look</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {aspectRatios.map((item) => {
+                const activeRatio = normalizeAspectRatio(settings.aspectRatio, '3:4');
+                const isSelected = activeRatio === item.id;
                 return (
                   <button
-                    key={th.id}
+                    key={item.id}
                     type="button"
-                    onClick={() => updateSetting('theme', th.id)}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                    onClick={() => updateSetting('aspectRatio', item.id)}
+                    className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
                       isSelected
                         ? 'border-[#0284c7] bg-[#f0f9ff] ring-1 ring-[#0284c7]'
                         : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
                     }`}
                   >
-                    <p className={`text-xs font-bold ${isSelected ? 'text-[#0369a1]' : 'text-[#1e293b]'}`}>
-                      {th.label}
-                    </p>
-                    <p className="text-[10px] text-[#64748b] mt-0.5 truncate">
-                      {th.desc}
-                    </p>
+                    <div
+                      className={`border-2 rounded-xs transition-colors ${
+                        isSelected ? 'border-[#0284c7] bg-[#bae6fd]' : 'border-[#94a3b8] bg-[#f1f5f9]'
+                      } ${item.shapeClass}`}
+                    />
+                    <span className={`text-xs font-bold ${isSelected ? 'text-[#0369a1]' : 'text-[#1e293b]'}`}>
+                      {item.label}
+                    </span>
+                    <span className="text-[9px] text-[#64748b] leading-none">
+                      {item.ratioDesc}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </div>
-        </div>
-      )}
+
+          {/* Website Crop Safe & Additional Notes (Quick Reach) */}
+          <div className="space-y-3">
+            <div className="p-3 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider">
+                    Website Crop Safe
+                  </label>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                      settings.websiteCropSafe
+                        ? 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]'
+                        : 'bg-[#f1f5f9] text-[#64748b] border-[#e2e8f0]'
+                    }`}
+                  >
+                    {settings.websiteCropSafe ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#64748b]">
+                  {settings.shotType === 'design-close-up'
+                    ? 'Protects full artwork inside 3:4 portrait safe zone (outer edges may crop)'
+                    : 'Keeps full product silhouette inside 3:4 portrait safe zone (8–12% margin)'}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={Boolean(settings.websiteCropSafe)}
+                onClick={() => updateSetting('websiteCropSafe', !settings.websiteCropSafe)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                  settings.websiteCropSafe ? 'bg-[#0f766e]' : 'bg-[#cbd5e1]'
+                }`}
+                title="Toggle Website Crop Safe (3:4 Portrait Safe Zone)"
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    settings.websiteCropSafe ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                <FileText className="w-3.5 h-3.5 text-[#0284c7]" />
+                Additional Notes / Fixed Directives
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Optional: e.g. Focus sharply on the gold foil title, preserve matte ceramic texture..."
+                value={settings.additionalInstructions}
+                onChange={(e) => updateSetting('additionalInstructions', e.target.value)}
+                className="w-full p-2.5 text-xs rounded-xl border border-[#cbd5e1] focus:outline-hidden focus:ring-2 focus:ring-[#0284c7] resize-y text-[#1e293b] placeholder-[#94a3b8]"
+              />
+            </div>
+          </div>
+      </div>
+
+      {/* ==========================================
+          ADVANCED STUDIO CONTROLS (Collapsible)
+         ========================================== */}
+      <div className="pt-2 border-t border-[#f1f5f9]">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          aria-expanded={showAdvanced}
+          className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] text-left transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-2">
+            <Sliders className="w-4 h-4 text-[#0284c7]" />
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-[#0f172a] block">
+                Advanced Studio Controls
+              </span>
+              <span className="text-[11px] text-[#64748b]">
+                {showAdvanced
+                  ? 'Fine-tune environment, camera, lighting, props & variation'
+                  : 'Optional: Override Theme, Camera, Environment, Lighting & Props'}
+              </span>
+            </div>
+          </div>
+          {showAdvanced ? (
+            <ChevronUp className="w-4 h-4 text-[#64748b]" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-[#64748b]" />
+          )}
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
+              {[
+                { id: 'environment', label: 'Environment & Color', icon: <Palette className="w-3.5 h-3.5" /> },
+                { id: 'camera', label: 'Camera & View', icon: <Camera className="w-3.5 h-3.5" /> },
+                { id: 'lighting', label: 'Lighting', icon: <Sun className="w-3.5 h-3.5" /> },
+                { id: 'props', label: 'Props & Styling', icon: <Sparkles className="w-3.5 h-3.5" /> },
+                { id: 'theme', label: 'Theme', icon: <Box className="w-3.5 h-3.5" /> },
+                { id: 'variation', label: 'Variation', icon: <Sliders className="w-3.5 h-3.5" /> },
+              ].map((sec) => {
+                const isActive = openSection === sec.id;
+                return (
+                  <button
+                    key={sec.id}
+                    type="button"
+                    onClick={() => setOpenSection(sec.id as any)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-white text-[#0284c7] shadow-xs border border-[#bae6fd] ring-1 ring-[#0284c7]/20'
+                        : 'text-[#64748b] hover:text-[#0f172a] hover:bg-white/60'
+                    }`}
+                  >
+                    {sec.icon}
+                    <span>{sec.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {openSection === 'theme' && (
+              <div className="space-y-5 pt-2">
+                <div>
+                  <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                    <Sparkles className="w-3.5 h-3.5 text-[#0284c7]" />
+                    High-Level Art Direction & Theme
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {themes.map((th) => {
+                      const isSelected = settings.theme === th.id;
+                      return (
+                        <button
+                          key={th.id}
+                          type="button"
+                          onClick={() => updateSetting('theme', th.id)}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-[#0284c7] bg-[#f0f9ff] ring-1 ring-[#0284c7]'
+                              : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
+                          }`}
+                        >
+                          <p className={`text-xs font-bold ${isSelected ? 'text-[#0369a1]' : 'text-[#1e293b]'}`}>
+                            {th.label}
+                          </p>
+                          <p className="text-[10px] text-[#64748b] mt-0.5 truncate">
+                            {th.desc}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
       {/* ==========================================
           SECTION 2: CAMERA & VIEWPOINT
@@ -1062,113 +1252,9 @@ export const ConfigurationControls: React.FC<ConfigurationControlsProps> = ({
         </div>
       )}
 
-      {/* ==========================================
-          SECTION 7: FRAMING & NOTES
-         ========================================== */}
-      {openSection === 'output' && (
-        <div className="space-y-5 pt-2">
-          {/* Aspect Ratio */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-[#0284c7]" />
-                Aspect Ratio
-              </label>
-              <span className="text-[11px] text-[#64748b]">Composition framing</span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {aspectRatios.map((item) => {
-                const isSelected = settings.aspectRatio === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => updateSetting('aspectRatio', item.id)}
-                    className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
-                      isSelected
-                        ? 'border-[#0284c7] bg-[#f0f9ff] ring-1 ring-[#0284c7]'
-                        : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
-                    }`}
-                  >
-                    <div
-                      className={`border-2 rounded-xs transition-colors ${
-                        isSelected ? 'border-[#0284c7] bg-[#bae6fd]' : 'border-[#94a3b8] bg-[#f1f5f9]'
-                      } ${item.shapeClass}`}
-                    />
-                    <span className={`text-xs font-bold ${isSelected ? 'text-[#0369a1]' : 'text-[#1e293b]'}`}>
-                      {item.label}
-                    </span>
-                    <span className="text-[9px] text-[#64748b] leading-none">
-                      {item.ratioDesc}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
-
-          {/* Website Crop Safe Toggle */}
-          <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
-            <div className="space-y-0.5 pr-2">
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider">
-                  Website Crop Safe
-                </label>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
-                    settings.websiteCropSafe
-                      ? 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]'
-                      : 'bg-[#f1f5f9] text-[#64748b] border-[#e2e8f0]'
-                  }`}
-                >
-                  {settings.websiteCropSafe ? 'ON' : 'OFF'}
-                </span>
-              </div>
-              <p className="text-[11px] text-[#64748b] leading-normal">
-                Designed for website images where the original image is cropped to a 4:3 display frame.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-center">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={Boolean(settings.websiteCropSafe)}
-                onClick={() => updateSetting('websiteCropSafe', !settings.websiteCropSafe)}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                  settings.websiteCropSafe ? 'bg-[#0f766e]' : 'bg-[#cbd5e1]'
-                }`}
-                title="Toggle Website Crop Safe (4:3 Safe Area)"
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                    settings.websiteCropSafe ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* Additional Instructions */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-[#0f172a] uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-[#0284c7]" />
-                Additional User Notes / Free-Text Directives
-              </label>
-            </div>
-
-            <textarea
-              rows={3}
-              placeholder="e.g. Focus sharply on the gold foil title, subtle evening raking light from top-left, emphasize the ribbed collar texture..."
-              value={settings.additionalInstructions}
-              onChange={(e) => updateSetting('additionalInstructions', e.target.value)}
-              className="w-full p-3 text-xs rounded-xl border border-[#cbd5e1] focus:outline-hidden focus:ring-2 focus:ring-[#0284c7] resize-y text-[#1e293b] placeholder-[#94a3b8]"
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Large Generate Prompt Button */}
       <div className="pt-2 border-t border-[#f1f5f9]">

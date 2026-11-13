@@ -2,5 +2,7 @@
   "name": "Science of Gifts Product Photo Generator",
   "description": "Local product photo prompt generator for Science of Gifts editorial photography.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

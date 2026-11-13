@@ -11,15 +11,41 @@ function getStorageKey(generatorId: GeneratorId, sectionKey: string): string {
 }
 
 /**
+ * Detects legacy saved `websiteCropSafe` strings from earlier app versions that contain
+ * obsolete square (1:1) to horizontal (4:3) crop-safe instructions.
+ */
+export function isLegacyObsoleteCropSafeTemplate(content: string): boolean {
+  if (!content) return false;
+  const mentionsObsolete43 = /4:3\s*(safe\s*zone|aspect\s*ratio|crop|horizontal\s*region)/i.test(
+    content
+  );
+  const mentionsSquareOrLegacyHeader =
+    /4:3 SAFE ZONE DIRECTIVE/i.test(content) ||
+    /square\s*\(1:1\)|1:1\s*frame|original\s*square\s*frame/i.test(content);
+  return mentionsObsolete43 && mentionsSquareOrLegacyHeader;
+}
+
+/**
  * Retrieves the currently active template section string,
  * loading from localStorage if customized, or falling back to built-in default.
+ * Automatically ignores/upgrades obsolete legacy 4:3 websiteCropSafe entries without
+ * touching genuine user customizations.
  */
 export function getTemplateSection(generatorId: GeneratorId, sectionKey: string): string {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      const saved = window.localStorage.getItem(getStorageKey(generatorId, sectionKey));
+      const storageKey = getStorageKey(generatorId, sectionKey);
+      const saved = window.localStorage.getItem(storageKey);
       if (saved !== null) {
-        return saved;
+        if (
+          generatorId === 'photography' &&
+          sectionKey === 'websiteCropSafe' &&
+          isLegacyObsoleteCropSafeTemplate(saved)
+        ) {
+          window.localStorage.removeItem(storageKey);
+        } else {
+          return saved;
+        }
       }
     } catch {
       // Safe fallback if localStorage is unavailable
@@ -48,6 +74,23 @@ export function getGeneratorSections(generatorId: GeneratorId): Record<string, s
   return result;
 }
 
+function hasNonLegacyCustomization(generatorId: GeneratorId, sectionKey: string): boolean {
+  try {
+    const saved = window.localStorage.getItem(getStorageKey(generatorId, sectionKey));
+    if (saved === null) return false;
+    if (
+      generatorId === 'photography' &&
+      sectionKey === 'websiteCropSafe' &&
+      isLegacyObsoleteCropSafeTemplate(saved)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Checks if a specific section (or any section in a generator) has been modified by the user.
  */
@@ -58,20 +101,12 @@ export function isTemplateCustomized(generatorId: GeneratorId, sectionKey?: stri
   if (!config) return false;
 
   if (sectionKey) {
-    try {
-      return window.localStorage.getItem(getStorageKey(generatorId, sectionKey)) !== null;
-    } catch {
-      return false;
-    }
+    return hasNonLegacyCustomization(generatorId, sectionKey);
   }
 
   for (const key of Object.keys(config.sections)) {
-    try {
-      if (window.localStorage.getItem(getStorageKey(generatorId, key)) !== null) {
-        return true;
-      }
-    } catch {
-      // Continue checking
+    if (hasNonLegacyCustomization(generatorId, key)) {
+      return true;
     }
   }
 
@@ -89,12 +124,8 @@ export function countCustomizedTemplates(): number {
     const config = GENERATOR_TEMPLATES_CONFIG[genId];
     if (config) {
       for (const sectionKey of Object.keys(config.sections)) {
-        try {
-          if (window.localStorage.getItem(getStorageKey(genId, sectionKey)) !== null) {
-            count++;
-          }
-        } catch {
-          // Continue
+        if (hasNonLegacyCustomization(genId, sectionKey)) {
+          count++;
         }
       }
     }

@@ -7,6 +7,8 @@ import {
   FileText,
   CheckCircle2,
   Sparkles,
+  Shuffle,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   CLOTHING_PRESENTATION_PRESETS,
@@ -35,6 +37,16 @@ interface PromptResultViewProps {
   imageInfo?: { name: string; size: string; width?: number; height?: number } | null;
   settings?: GenerationSettings;
   activeChips?: ResultActiveChip[];
+  onNextLook?: () => void;
+  currentLookName?: string | null;
+  currentLookSubtitle?: string | null;
+  lookCounter?: { current: number; total: number } | null;
+  isChatgptManuallyEdited?: boolean;
+  isGeminiManuallyEdited?: boolean;
+  pendingChatgptAutoPrompt?: string | null;
+  pendingGeminiAutoPrompt?: string | null;
+  onApplyPendingAutoPrompt?: (tab: 'chatgpt' | 'gemini') => void;
+  onDismissPendingAutoPrompt?: (tab: 'chatgpt' | 'gemini') => void;
 }
 
 export const PromptResultView: React.FC<PromptResultViewProps> = ({
@@ -52,6 +64,16 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
   imageInfo,
   settings,
   activeChips,
+  onNextLook,
+  currentLookName,
+  currentLookSubtitle,
+  lookCounter,
+  isChatgptManuallyEdited = false,
+  isGeminiManuallyEdited = false,
+  pendingChatgptAutoPrompt = null,
+  pendingGeminiAutoPrompt = null,
+  onApplyPendingAutoPrompt,
+  onDismissPendingAutoPrompt,
 }) => {
   const isDualModel = chatgptPrompt !== undefined && geminiPrompt !== undefined;
   const [activeTab, setActiveTab] = useState<'chatgpt' | 'gemini'>('chatgpt');
@@ -63,6 +85,18 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
       ? chatgptPrompt
       : geminiPrompt
     : singlePrompt;
+
+  const isActiveTabManuallyEdited = isDualModel
+    ? activeTab === 'chatgpt'
+      ? isChatgptManuallyEdited
+      : isGeminiManuallyEdited
+    : false;
+
+  const activePendingPrompt = isDualModel
+    ? activeTab === 'chatgpt'
+      ? pendingChatgptAutoPrompt
+      : pendingGeminiAutoPrompt
+    : null;
 
   const handleActivePromptChange = (newVal: string) => {
     if (isDualModel) {
@@ -188,7 +222,7 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
 
         {/* Dual Model Tab Switcher (if dual model is active) */}
         {isDualModel && (
-          <div className="flex items-center gap-2 mb-4 p-1 bg-[#f1f5f9] rounded-xl border border-[#e2e8f0]">
+          <div className="flex items-center gap-2 mb-3 p-1 bg-[#f1f5f9] rounded-xl border border-[#e2e8f0]">
             <button
               type="button"
               onClick={() => setActiveTab('chatgpt')}
@@ -219,6 +253,68 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
           </div>
         )}
 
+        {/* Active Look Indicator Strip (Product Photography) */}
+        {onNextLook && (
+          <div className="mb-3 px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-bold text-[#0f766e] uppercase tracking-wider text-[10px]">
+                  {lookCounter ? `Look ${lookCounter.current}/${lookCounter.total}` : 'Studio Look'}
+                </span>
+                <span className="font-semibold text-[#0f172a] truncate">
+                  {currentLookName || 'Science Blue-Mint & Honed Travertine'}
+                </span>
+              </div>
+              {currentLookSubtitle && (
+                <p className="text-[11px] text-[#64748b] truncate">
+                  {currentLookSubtitle}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onNextLook}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#0369a1] bg-[#e0f2fe] hover:bg-[#bae6fd] border border-[#7dd3fc] transition-all flex items-center gap-1.5 active:scale-[0.98] cursor-pointer flex-shrink-0"
+              title="Switch to a distinct curated studio look while preserving your product and orientation"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              <span>Next Look</span>
+            </button>
+          </div>
+        )}
+
+        {/* Manual Edit Protection Notice Bar */}
+        {isDualModel && activePendingPrompt && (
+          <div className="mb-3 px-3 py-2.5 rounded-xl bg-[#fffbeb] border border-[#fde68a] flex flex-wrap items-center justify-between gap-2 text-xs text-[#92400e]">
+            <div className="flex items-center gap-2 min-w-0">
+              <ShieldAlert className="w-4 h-4 text-[#d97706] flex-shrink-0" />
+              <span className="font-medium">
+                Manual edits preserved — settings updated the generated prompt.
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {onApplyPendingAutoPrompt && (
+                <button
+                  type="button"
+                  onClick={() => onApplyPendingAutoPrompt(activeTab)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#d97706] text-white hover:bg-[#b45309] transition-colors cursor-pointer"
+                >
+                  Apply Updated Prompt
+                </button>
+              )}
+              {onDismissPendingAutoPrompt && (
+                <button
+                  type="button"
+                  onClick={() => onDismissPendingAutoPrompt(activeTab)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white text-[#92400e] border border-[#fcd34d] hover:bg-[#fef3c7] transition-colors cursor-pointer"
+                >
+                  Keep My Edits
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Large Editable Text Area */}
         <div className="relative flex-1 flex flex-col">
           <textarea
@@ -240,15 +336,32 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
 
         {/* Bottom Actions Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-[#f1f5f9]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] text-[#64748b]">
               {isDualModel
                 ? `Currently viewing: ${activeTab === 'chatgpt' ? 'ChatGPT (DALL-E 3)' : 'Google Gemini Multimodal'} Prompt • Editable before copying`
                 : 'Editable prompt • Click anywhere to customize wording before copying'}
             </span>
+            {isActiveTabManuallyEdited && (
+              <span className="px-2 py-0.5 rounded-full bg-[#fef3c7] text-[#92400e] border border-[#fde68a] text-[10px] font-semibold">
+                Edited manually
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {onNextLook && (
+              <button
+                type="button"
+                onClick={onNextLook}
+                className="px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm text-[#0f172a] bg-white hover:bg-[#f0f9ff] border border-[#0284c7] shadow-xs transition-all flex items-center gap-2 active:scale-[0.98] cursor-pointer"
+                title="Generate a fresh editorial backdrop, surface, and lighting look for the same product"
+              >
+                <Shuffle className="w-4 h-4 text-[#0284c7]" />
+                <span>Next Look</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleCopy}
@@ -315,9 +428,14 @@ export const PromptResultView: React.FC<PromptResultViewProps> = ({
               <span className="px-2 py-0.5 rounded-md bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] font-medium">
                 Ratio: {settings.aspectRatio}
               </span>
+              {settings.shotType === 'design-close-up' && (
+                <span className="px-2 py-0.5 rounded-md bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd] font-medium">
+                  Shot: Design Close-Up
+                </span>
+              )}
               {settings.websiteCropSafe && (
                 <span className="px-2 py-0.5 rounded-md bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0] font-medium">
-                  Crop-Safe: 4:3
+                  Crop-Safe: 3:4
                 </span>
               )}
             </>

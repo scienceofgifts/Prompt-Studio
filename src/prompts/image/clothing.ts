@@ -7,6 +7,7 @@ import {
   PromptOptions,
 } from '../types';
 import { buildMasterPhotographyPrompt } from '../shared/options';
+import { normalizeAspectRatio } from '../shared/studioOptions';
 
 export type ClothingGarmentType = 'tshirt' | 'sweatshirt' | 'hoodie';
 
@@ -436,6 +437,19 @@ export function getClothingOrientationPromptText(options: PromptOptions): string
   const isHoodie = options.productType === 'hoodie';
   const isSweatshirt = options.productType === 'sweatshirt';
 
+  if (options.shotType === 'design-close-up' && presentation !== 'close-up-detail') {
+    const planeContext =
+      presentation === 'hanger-presentation' || presentation === 'ghost-mannequin'
+        ? `supported cleanly in a vertical studio posture`
+        : presentation.includes('folded') || presentation === 'hoodie-hood-displayed' || presentation === 'compact-boutique-fold'
+        ? `resting neatly folded on the surface with the printed chest panel flat and upward-facing`
+        : `lying smoothly on the horizontal staging surface in natural textile repose`;
+
+    return `Design Close-Up Artwork Staging (${garment}): The ${garment} is ${planeContext}, with the camera brought significantly closer to tightly frame the actual printed chest/front graphic (~70–85% artwork coverage when proportions allow). Retain authentic knit cotton jersey or heavyweight fleece fabric texture, subtle natural textile contours, and ink-on-fiber surface detail around the design so it reads unmistakably as a real physical ${garment}—NOT a separate collar/stitching macro and NOT a pulled-back full-garment silhouette. Sleeves, outer torso seams${
+      isHoodie ? ', outer hood periphery,' : ''
+    } and lower hem may crop naturally outside the frame while keeping 100% of essential printed artwork and typography intact.`;
+  }
+
   switch (presentation) {
     case 'classic-symmetrical-flat-lay':
       return `Classic Symmetrical Flat-Lay Presentation: The ${garment} lies completely flat and centered on the surface, with both sleeves arranged evenly and symmetrically. The ribbed crewneck collar and hem are cleanly aligned, the front graphic is 100% visible and unobstructed, and the camera is positioned directly overhead at 90 degrees.`;
@@ -518,6 +532,27 @@ export function getClothingCameraPromptText(options: PromptOptions): string {
   const perspective = options.perspective || 'natural';
   const focal = options.focalLength || 'normal-editorial';
   const dof = options.depthOfField || 'gentle-falloff';
+  const isDesignCloseUp = options.shotType === 'design-close-up';
+
+  if (isDesignCloseUp && presentation !== 'close-up-detail') {
+    const isFlatOrFolded =
+      CLOTHING_PRESENTATION_PRESETS[presentation].group === 'flat-lay' ||
+      CLOTHING_PRESENTATION_PRESETS[presentation].group === 'folded';
+    const closeUpAngleDesc = isFlatOrFolded
+      ? 'Move the camera significantly closer in a clean, perpendicular overhead alignment directly facing the printed chest graphic plane so typography, line weights, and illustration proportions stay tack-sharp and undistorted (do not pull back for wide sleeve-to-sleeve garment framing).'
+      : 'Move the camera significantly closer in a clean, perpendicular frontal alignment directly facing the printed artwork panel so typography and graphics remain razor-sharp, glare-free, and distortion-free.';
+    const closeUpFocal =
+      focal === 'macro-detail'
+        ? '120mm macro lens character rendering razor-sharp printed ink, typography, and authentic cotton/fleece fiber texture.'
+        : '90mm–100mm close-focus macro product lens rendering tack-sharp printed artwork, lettering, and textile grain with zero wide-angle distortion.';
+
+    return `CAMERA & VIEWPOINT DIRECTION (DESIGN CLOSE-UP GARMENT ARTWORK):
+• Shot Type: Design Close-Up Artwork Framing (~70–85% artwork coverage when proportions allow) — Close commercial photograph centering the actual printed graphic, illustrations, and lettering on the real physical garment with surrounding authentic fabric texture visible (distinct from bare stitching/collar texture macros and distinct from full-garment hero framing).
+• Angle & Viewpoint: ${closeUpAngleDesc}
+• Optical Perspective: Clean, distortion-free close optical perspective keeping artwork geometry, letterforms, and print proportions completely true.
+• Focal Character: ${closeUpFocal}
+• Depth of Field: Moderate aperture (f/5.6–f/8) keeping 100% of the printed artwork and typography tack-sharp edge-to-edge across the textile surface without shallow-focus blur across lettering.`;
+  }
 
   let shotDesc =
     'Hero garment composition featuring complete, unobstructed product and graphic visibility.';
@@ -692,6 +727,10 @@ export function getClothingCompositionNote(options: PromptOptions): string {
     options.orientation
   );
 
+  if (options.shotType === 'design-close-up' && presentation !== 'close-up-detail') {
+    return '\n• Design Close-Up Garment Cropping: Frame tightly on the actual chest/front printed artwork (~70–85% artwork coverage when proportions allow) surrounded by real garment fabric texture; allow sleeves, hem, and outer garment margins to crop naturally rather than zooming out for the full garment.';
+  }
+
   switch (presentation) {
     case 'diagonal-flat-lay':
       return '\n• Garment Alignment: Rotate the garment approximately 15–30 degrees relative to the frame edges while keeping the composition balanced and the front graphic completely legible.';
@@ -719,14 +758,26 @@ export function getClothingFidelityDirectives(
     options.orientation
   );
 
+  const isDesignCloseUp = options.shotType === 'design-close-up';
+
+  const adaptedGarmentDirectives = isDesignCloseUp
+    ? [
+        `AUTHENTIC GARMENT FABRIC & TEXTURE (${getGarmentNoun(options.productType).toUpperCase()}): Preserve the genuine knit cotton jersey or heavyweight fleece surface grain, fabric color, and natural textile weave surrounding the printed artwork (and retain authentic construction on any collar/seam portions visible near frame edges without forcing sleeves or lower hem into frame).`,
+      ]
+    : garmentSpecificDirectives;
+
   const universalClothingDirectives: string[] = [
-    ...garmentSpecificDirectives,
+    ...adaptedGarmentDirectives,
     'PRESERVE ORIGINAL ARTWORK & LETTERING: Faithfully preserve the supplied artwork, lettering, exact spelling, colors, proportions, and placement. Do NOT redesign, reinterpret, or regenerate the graphic.',
     'NO INVENTED GRAPHICS OR EMBELLISHMENTS: Do not add invented text, logos, neck labels, sleeve tags, embellishments, or decorative elements anywhere on the garment.',
-    presentation === 'close-up-detail'
+    isDesignCloseUp
+      ? 'DESIGN CLOSE-UP INK-ON-FABRIC REALISM: Closely photograph the actual printed artwork on real textile fibers (~70–85% artwork coverage when proportions allow) with tack-sharp typography, authentic screen-print/ink integration into cotton jersey or fleece weave, and visible surrounding fabric—NOT a bare collar/stitching detail shot and never a flat digital graphic.'
+      : presentation === 'close-up-detail'
       ? 'FAITHFUL CLOSE-UP REPRODUCTION: Reproduce the exact ink/print texture, typography, fabric weave, collar ribbing, and stitching of the supplied design without inventing any new graphic details.'
       : 'UNOBSTRUCTED & UNDISTORTED GRAPHIC: Keep the printed graphic completely visible, unobstructed, and undistorted across the chest/garment panel.',
-    'REALISTIC GARMENT CONSTRUCTION & DRAPE: Maintain authentic garment construction, seams, collar shape, sleeves, folds, and realistic fabric texture. Avoid excessive wrinkles, malformed sleeves, implausible garment geometry, and distracting props.',
+    isDesignCloseUp
+      ? 'NATURAL TEXTILE SURFACE AROUND ARTWORK: Maintain subtle, realistic textile tension and fabric drape across the chest panel without messy crumpling, synthetic smoothness, or distracting props.'
+      : 'REALISTIC GARMENT CONSTRUCTION & DRAPE: Maintain authentic garment construction, seams, collar shape, sleeves, folds, and realistic fabric texture. Avoid excessive wrinkles, malformed sleeves, implausible garment geometry, and distracting props.',
     'DO NOT INVENT BACK DETAILS: Do not invent graphics, text, seams, or details on the back of the garment when they are not supplied in the reference.',
   ];
 
@@ -796,6 +847,10 @@ export function getClothingGeminiOrientationDesc(options: PromptOptions): string
   );
   const garment = getGarmentNoun(options.productType);
 
+  if (options.shotType === 'design-close-up' && presentation !== 'close-up-detail') {
+    return `Design Close-Up Artwork view (${presentation}): Close studio photograph framing the actual printed chest/front graphic on the ${garment} (~70–85% artwork coverage when proportions allow) with authentic surrounding garment fabric visible, keeping every letter and illustration tack-sharp while allowing sleeves and outer edges to crop naturally.`;
+  }
+
   switch (presentation) {
     case 'classic-symmetrical-flat-lay':
       return `Classic symmetrical flat-lay view (${presentation}): Architectural 90-degree overhead flat-lay view, with the ${garment} lying completely flat and centered on the tabletop surface, sleeves arranged evenly and symmetrically, and the front printed graphic fully visible and unobstructed.`;
@@ -849,13 +904,19 @@ export function getClothingGeminiOrientationDesc(options: PromptOptions): string
  */
 export function getClothingGeminiCameraDesc(options: PromptOptions): string {
   const { presentation, effectiveCameraAngle } = resolveClothingCamera(options);
-  const ratio = options.aspectRatio || '1:1';
+  const ratio = normalizeAspectRatio(options.aspectRatio, '3:4');
   const shotText =
-    presentation === 'close-up-detail'
+    options.shotType === 'design-close-up'
+      ? 'design close-up artwork framing (~70–85% artwork coverage)'
+      : presentation === 'close-up-detail'
       ? 'close-up macro detail framing'
       : options.shotType
       ? options.shotType.replace(/-/g, ' ')
       : 'hero product framing';
+
+  if (options.shotType === 'design-close-up' && presentation !== 'close-up-detail') {
+    return `Close perpendicular studio camera positioned directly over the printed chest graphic (~70–85% artwork coverage), ${shotText}, razor-sharp lettering and authentic textile weave, ${ratio} aspect ratio, tack-sharp across entire printed design.`;
+  }
 
   let angleInstruction = '';
   switch (presentation) {

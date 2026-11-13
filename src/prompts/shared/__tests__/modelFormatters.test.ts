@@ -66,7 +66,7 @@ async function runTests() {
     background: 'science-gradient',
     surface: 'light-stone',
     props: 'minimal-subtle',
-    aspectRatio: '4:5',
+    aspectRatio: '3:4',
     additionalInstructions: '',
     cameraAngle: 'three-quarter',
     shotType: 'hero-product',
@@ -221,7 +221,7 @@ async function runTests() {
       background: 'science-gradient',
       surface: 'light-stone',
       props: 'none',
-      aspectRatio: '4:5',
+      aspectRatio: '3:4',
     });
 
     if (garment === 'tshirt') {
@@ -324,7 +324,7 @@ async function runTests() {
     background: 'neutral-editorial',
     surface: 'editorial-tabletop',
     props: 'none',
-    aspectRatio: '4:5',
+    aspectRatio: '3:4',
   };
   const hangerChatGpt = buildChatGPTPhotoPrompt(hangerConflictOpts);
   const hangerGemini = buildGeminiPhotoPrompt(hangerConflictOpts);
@@ -351,7 +351,7 @@ async function runTests() {
     background: 'science-gradient',
     surface: 'editorial-tabletop',
     props: 'none',
-    aspectRatio: '4:5',
+    aspectRatio: '3:4',
   };
   const ghostChatGpt = buildChatGPTPhotoPrompt(ghostConflictOpts);
   assert(
@@ -873,7 +873,895 @@ async function runTests() {
   );
   console.log('Test 19 Passed: Product Copy prompt generation with profile specifications verified.');
 
-  console.log('All Prompt Studio photography, clothing, Gift Guide Hero, and Product Copy / Profile tests passed successfully!');
+  // ==========================================
+  // Smart Setup & One-Click Next Look Tests
+  // ==========================================
+  const {
+    applySmartSetupToSettings,
+    CURATED_STUDIO_LOOKS,
+    getNextStudioLook,
+  } = await import('../smartSetup');
+
+  const baseSettings = {
+    productType: 'notebook' as const,
+    orientation: 'flat-lay' as const,
+    background: 'gradient-wall-neutral-surface' as const,
+    surface: 'editorial-tabletop' as const,
+    props: 'subtle-historical' as const,
+    aspectRatio: '3:4' as const,
+    additionalInstructions: 'Keep gold foil crisp and legible.',
+    theme: 'editorial-still-life' as const,
+    productPosition: 'centered' as const,
+    productPresentation: 'editorial' as const,
+    shotType: 'hero-product' as const,
+    cameraAngle: 'three-quarter' as const,
+    perspective: 'natural' as const,
+    focalLength: 'normal-editorial' as const,
+    depthOfField: 'gentle-falloff' as const,
+    compositionStyle: 'centered' as const,
+    negativeSpace: 'balanced' as const,
+    lightingStyle: 'large-soft-studio' as const,
+    shadowCharacter: 'soft' as const,
+    propLevel: 'minimal' as const,
+    propFamily: 'category-aware' as const,
+    propPlacement: 'background-only' as const,
+    colorPalette: 'science-blue-mint' as const,
+    variationLevel: 'moderate' as const,
+    websiteCropSafe: true,
+  };
+
+  // Test 20: Smart setup defaults for hoodie, tshirt, mug, notebook, poster, and flat accessories
+  const hoodieSetup = applySmartSetupToSettings(
+    {
+      productType: 'hoodie',
+      customProductType: '',
+      detectedLabel: 'Heavyweight Pullover Hoodie',
+      surfaceFormFactor: 'garment',
+      confidence: 'high',
+      briefNotes: 'Front chest graphic visible',
+    },
+    baseSettings
+  );
+  assert(
+    hoodieSetup.productType === 'hoodie' &&
+      hoodieSetup.orientation === 'flat-lay' &&
+      hoodieSetup.clothingPresentation === 'relaxed-natural-flat-lay' &&
+      hoodieSetup.cameraAngle === 'gentle-overhead' &&
+      hoodieSetup.aspectRatio === '3:4' &&
+      hoodieSetup.additionalInstructions === 'Keep gold foil crisp and legible.' &&
+      hoodieSetup.websiteCropSafe === true,
+    'Hoodie smart setup must configure flat-lay + relaxed-natural-flat-lay + gentle-overhead while preserving user ratio & notes'
+  );
+  assert(
+    isPresetSupportedForGarment(hoodieSetup.clothingPresentation!, 'hoodie'),
+    'Hoodie smart setup must pick a hoodie-supported clothing presentation preset'
+  );
+
+  const mugSetup = applySmartSetupToSettings(
+    {
+      productType: 'mug',
+      customProductType: '',
+      detectedLabel: 'Ceramic Mug',
+      surfaceFormFactor: 'vessel',
+      confidence: 'high',
+      briefNotes: 'Wrap graphic on white ceramic mug',
+    },
+    baseSettings
+  );
+  assert(
+    mugSetup.productType === 'mug' &&
+      mugSetup.orientation === 'upright' &&
+      mugSetup.cameraAngle === 'three-quarter' &&
+      mugSetup.clothingPresentation === undefined,
+    'Mug smart setup must configure upright + three-quarter camera'
+  );
+
+  const posterSetup = applySmartSetupToSettings(
+    {
+      productType: 'poster',
+      customProductType: '',
+      detectedLabel: 'Scientific Star Chart Poster',
+      surfaceFormFactor: 'wall-art-print',
+      confidence: 'high',
+      briefNotes: 'Framed vertical print',
+    },
+    baseSettings
+  );
+  assert(
+    posterSetup.productType === 'poster' &&
+      posterSetup.orientation === 'upright' &&
+      posterSetup.cameraAngle === 'straight-on',
+    'Poster smart setup must configure upright + straight-on front-facing camera'
+  );
+
+  const deskMatSetup = applySmartSetupToSettings(
+    {
+      productType: 'other',
+      customProductType: 'Desk Mat',
+      detectedLabel: 'Illustrated Desk Mat',
+      surfaceFormFactor: 'flat-accessory',
+      confidence: 'high',
+      briefNotes: 'Rectangular stitched desk mat',
+    },
+    baseSettings
+  );
+  assert(
+    deskMatSetup.productType === 'other' &&
+      deskMatSetup.customProductType === 'Desk Mat' &&
+      deskMatSetup.orientation === 'flat-lay' &&
+      deskMatSetup.cameraAngle === 'gentle-overhead',
+    'Other flat accessory (Desk Mat) must populate customProductType and configure flat-lay + gentle-overhead'
+  );
+  console.log('Test 20 Passed: Smart setup defaults verified for hoodie, mug, poster, and flat accessories.');
+
+  // Test 21: Next Look preserves product identity, orientation, ratio, and notes while updating ChatGPT prompt
+  const firstLookResult = getNextStudioLook(hoodieSetup, []);
+  assert(
+    firstLookResult.nextSettings.productType === 'hoodie' &&
+      firstLookResult.nextSettings.orientation === 'flat-lay' &&
+      firstLookResult.nextSettings.clothingPresentation === 'relaxed-natural-flat-lay' &&
+      firstLookResult.nextSettings.cameraAngle === 'gentle-overhead' &&
+      firstLookResult.nextSettings.aspectRatio === '3:4' &&
+      firstLookResult.nextSettings.additionalInstructions === 'Keep gold foil crisp and legible.' &&
+      firstLookResult.nextSettings.websiteCropSafe === true,
+    'Next Look must preserve hoodie identity, flat-lay orientation, presentation, overhead camera, ratio, and notes'
+  );
+  assert(
+    firstLookResult.nextSettings.background !== hoodieSetup.background ||
+      firstLookResult.nextSettings.surface !== hoodieSetup.surface,
+    'Next Look must update the environment background/surface'
+  );
+
+  const hoodiePrompt1 = buildChatGPTPhotoPrompt({ ...hoodieSetup, hasReferenceImage: true });
+  const hoodiePrompt2 = buildChatGPTPhotoPrompt({ ...firstLookResult.nextSettings, hasReferenceImage: true });
+  assert(
+    hoodiePrompt1 !== hoodiePrompt2 &&
+      hoodiePrompt2.includes('Apparel / Hoodie') &&
+      hoodiePrompt2.includes('Relaxed Natural Flat-Lay Presentation'),
+    'Next Look must immediately produce a revised ChatGPT prompt while retaining garment fidelity'
+  );
+  console.log('Test 21 Passed: Next Look preserves product constraints while changing environment & ChatGPT prompt.');
+
+  // Test 22: Next Look cycles through all curated looks without repeats until exhausted
+  // 22a: Starting from a settings state matching one curated look ('science-gradient-travertine'),
+  // the remaining N-1 looks are visited without repeats before wrapping.
+  let rollingSettings = deskMatSetup;
+  let usedIds: string[] = [];
+  let activeLookId: string | null = null;
+  const seenInFirstCycle: string[] = ['science-gradient-travertine'];
+
+  for (let i = 0; i < CURATED_STUDIO_LOOKS.length - 1; i++) {
+    const step = getNextStudioLook(rollingSettings, usedIds, activeLookId);
+    assert(
+      step.didResetCycle === false && !seenInFirstCycle.includes(step.look.id),
+      `Look ${step.look.id} repeated before exhausting all ${CURATED_STUDIO_LOOKS.length} looks`
+    );
+    assert(
+      step.nextSettings.background !== rollingSettings.background,
+      'Consecutive Next Look clicks must produce distinct backgrounds'
+    );
+    assert(
+      step.nextSettings.productType === 'other' &&
+        step.nextSettings.customProductType === 'Desk Mat' &&
+        step.nextSettings.orientation === 'flat-lay' &&
+        step.nextSettings.cameraAngle === 'gentle-overhead',
+      'Desk Mat identity and flat-lay overhead setup must remain unchanged across all looks'
+    );
+    seenInFirstCycle.push(step.look.id);
+    rollingSettings = step.nextSettings;
+    usedIds = step.nextUsedLookIds;
+    activeLookId = step.look.id;
+  }
+
+  assert(
+    seenInFirstCycle.length === CURATED_STUDIO_LOOKS.length,
+    'Initial look + N-1 clicks must cover every curated look exactly once'
+  );
+
+  // Trigger one more click after exhaustion: must reset cycle and NOT repeat the immediate previous look
+  const wrapStep = getNextStudioLook(rollingSettings, usedIds, activeLookId);
+  assert(
+    wrapStep.didResetCycle === true && wrapStep.look.id !== activeLookId,
+    'After exhausting all looks, Next Look must reset cycle without repeating the immediately preceding look'
+  );
+
+  // 22b: Starting from custom settings not matching any curated look visits all N looks before reset
+  let customRolling: import('../../../types').GenerationSettings = {
+    ...deskMatSetup,
+    background: 'alabaster',
+    surface: 'travertine',
+    colorPalette: 'pale-blue-gray',
+  };
+  let customUsed: string[] = [];
+  let customActive: string | null = null;
+  const customSeen: string[] = [];
+  for (let i = 0; i < CURATED_STUDIO_LOOKS.length; i++) {
+    const step = getNextStudioLook(customRolling, customUsed, customActive);
+    assert(
+      step.didResetCycle === false && !customSeen.includes(step.look.id),
+      `Custom start: look ${step.look.id} repeated before exhausting all ${CURATED_STUDIO_LOOKS.length} looks`
+    );
+    customSeen.push(step.look.id);
+    customRolling = step.nextSettings;
+    customUsed = step.nextUsedLookIds;
+    customActive = step.look.id;
+  }
+  console.log('Test 22 Passed: Next Look non-repeating cycle and visual distinctness verified.');
+
+  // Test 23: Next Look respects upright mug & vertical clothing compatibility rules
+  const uprightMugLook = getNextStudioLook(mugSetup, []);
+  assert(
+    uprightMugLook.nextSettings.orientation === 'upright' &&
+      (uprightMugLook.nextSettings.cameraAngle === 'three-quarter' ||
+        uprightMugLook.nextSettings.cameraAngle === 'slightly-elevated'),
+    'Next Look for upright mug must keep upright orientation and compatible three-quarter/elevated camera'
+  );
+
+  const hangerHoodie = {
+    ...hoodieSetup,
+    orientation: 'upright' as const,
+    clothingPresentation: 'hanger-presentation' as const,
+    cameraAngle: 'straight-on' as const,
+  };
+  const hangerNextLook = getNextStudioLook(hangerHoodie, []);
+  assert(
+    hangerNextLook.nextSettings.clothingPresentation === 'hanger-presentation' &&
+      hangerNextLook.nextSettings.cameraAngle === 'straight-on',
+    'Next Look for hanger-presentation hoodie must preserve hanger presentation and front-facing camera'
+  );
+  console.log('Test 23 Passed: Next Look clothing and drinkware compatibility rules verified.');
+
+  // ==========================================
+  // Design Close-Up, 3:4 Portrait Aspect Ratio, and Repaired 3:4 Crop-Safe Tests
+  // ==========================================
+  const { STUDIO_ASPECT_RATIOS, normalizeAspectRatio } = await import('../studioOptions');
+  const { isLegacyObsoleteCropSafeTemplate, getTemplateSection, isTemplateCustomized } = await import(
+    '../../../utils/templateManager'
+  );
+
+  // Test 24: 3:4 Portrait Aspect Ratio replacement and safe legacy 4:5 normalization
+  assert(
+    STUDIO_ASPECT_RATIOS.some((r) => r.id === '3:4') &&
+      !STUDIO_ASPECT_RATIOS.some((r) => (r.id as string) === '4:5'),
+    'STUDIO_ASPECT_RATIOS must replace 4:5 with 3:4'
+  );
+  assert(
+    normalizeAspectRatio('4:5') === '3:4' && normalizeAspectRatio('3:4') === '3:4',
+    'normalizeAspectRatio must map legacy 4:5 to 3:4'
+  );
+
+  const legacyRatioPrompt = buildChatGPTPhotoPrompt({
+    productType: 'mug',
+    orientation: 'upright',
+    background: 'science-gradient',
+    surface: 'light-stone',
+    props: 'none',
+    aspectRatio: '4:5' as unknown as import('../../types').AspectRatio,
+  });
+  assert(
+    legacyRatioPrompt.includes('3:4 (Vertical Portrait Format') && !legacyRatioPrompt.includes('4:5'),
+    'Legacy 4:5 aspect ratio input must normalize cleanly to 3:4 in generated ChatGPT prompt'
+  );
+
+  const legacySmartSetup = applySmartSetupToSettings(
+    {
+      productType: 'tshirt',
+      customProductType: '',
+      detectedLabel: 'Printed T-shirt',
+      surfaceFormFactor: 'garment',
+      confidence: 'high',
+      briefNotes: '',
+    },
+    {
+      ...baseSettings,
+      aspectRatio: '4:5' as unknown as import('../../types').AspectRatio,
+    }
+  );
+  assert(
+    legacySmartSetup.aspectRatio === '3:4',
+    'Smart setup must normalize any saved legacy 4:5 ratio to 3:4'
+  );
+  console.log('Test 24 Passed: 3:4 aspect ratio standard and legacy 4:5 normalization verified.');
+
+  // Test 25: Design Close-Up framing across product categories without hero contradictions
+  const tshirtCloseUpPrompt = buildChatGPTPhotoPrompt({
+    productType: 'tshirt',
+    orientation: 'flat-lay',
+    clothingPresentation: 'classic-symmetrical-flat-lay',
+    shotType: 'design-close-up',
+    background: 'neutral-editorial',
+    surface: 'light-wood',
+    props: 'none',
+    aspectRatio: '3:4',
+    websiteCropSafe: false,
+  });
+  assert(
+    tshirtCloseUpPrompt.includes('70–85% artwork coverage') &&
+      tshirtCloseUpPrompt.includes('NOT a bare collar/stitching detail shot') &&
+      !tshirtCloseUpPrompt.includes('Classic Symmetrical Flat-Lay Presentation: The T-shirt lies completely flat and centered on the surface, with both sleeves arranged evenly') &&
+      !tshirtCloseUpPrompt.includes('Centered hero composition with calm, balanced framing and generous negative space'),
+    'T-shirt Design Close-Up must prioritize 70-85% artwork + surrounding fabric without conflicting full-garment hero instructions'
+  );
+
+  const detailOrientedPrompt = buildChatGPTPhotoPrompt({
+    productType: 'tshirt',
+    orientation: 'flat-lay',
+    clothingPresentation: 'classic-symmetrical-flat-lay',
+    shotType: 'detail-oriented',
+    background: 'neutral-editorial',
+    surface: 'light-wood',
+    props: 'none',
+    aspectRatio: '3:4',
+    websiteCropSafe: false,
+  });
+  assert(
+    detailOrientedPrompt.includes('tactile cotton/fleece weave') &&
+      !detailOrientedPrompt.includes('70–85% artwork coverage'),
+    'Detail & Texture Focus must remain distinct from Design Close-Up'
+  );
+
+  const mugCloseUpPrompt = buildChatGPTPhotoPrompt({
+    productType: 'mug',
+    orientation: 'upright',
+    shotType: 'design-close-up',
+    background: 'blue-wall-neutral-surface',
+    surface: 'light-stone',
+    props: 'none',
+    aspectRatio: '3:4',
+  });
+  assert(
+    mugCloseUpPrompt.includes('70–85% artwork coverage') &&
+      mugCloseUpPrompt.includes('authentic ceramic curvature'),
+    'Mug Design Close-Up must prominently frame printed wrap artwork on curved ceramic'
+  );
+
+  const notebookCloseUpPrompt = buildChatGPTPhotoPrompt({
+    productType: 'notebook',
+    orientation: 'flat-lay',
+    shotType: 'design-close-up',
+    background: 'warm-ivory',
+    surface: 'light-wood',
+    props: 'none',
+    aspectRatio: '3:4',
+  });
+  assert(
+    notebookCloseUpPrompt.includes('70–85% artwork coverage') &&
+      notebookCloseUpPrompt.includes('without inventing any spine fold') &&
+      !notebookCloseUpPrompt.includes('highlighting the full planar geometry'),
+    'Notebook Design Close-Up must focus closely on cover artwork & edge texture without spine fold or wide planar hero wording'
+  );
+
+  const posterCloseUpPrompt = buildChatGPTPhotoPrompt({
+    productType: 'poster',
+    orientation: 'upright',
+    shotType: 'design-close-up',
+    background: 'neutral-editorial',
+    surface: 'paper-archival',
+    props: 'none',
+    aspectRatio: '3:4',
+  });
+  assert(
+    posterCloseUpPrompt.includes('70–85% artwork coverage') &&
+      !posterCloseUpPrompt.includes('Do not crop out edges') &&
+      posterCloseUpPrompt.includes('archival paper'),
+    'Poster Design Close-Up must preserve tight physical print accuracy without contradicting outer-margin cropping'
+  );
+
+  const nextLookDuringCloseUp = getNextStudioLook(
+    {
+      ...hoodieSetup,
+      shotType: 'design-close-up',
+      aspectRatio: '3:4',
+    },
+    []
+  );
+  assert(
+    nextLookDuringCloseUp.nextSettings.shotType === 'design-close-up' &&
+      nextLookDuringCloseUp.nextSettings.aspectRatio === '3:4',
+    'Next Look must preserve Design Close-Up shot mode and 3:4 aspect ratio'
+  );
+  console.log('Test 25 Passed: Design Close-Up across all categories verified without hero-shot contradictions.');
+
+  // Test 26: Website Crop Safe (3:4 portrait) in Hero and Design Close-Up modes + legacy localStorage cleanup
+  const heroCropSafePrompt = buildChatGPTPhotoPrompt({
+    productType: 'mug',
+    orientation: 'upright',
+    shotType: 'hero-product',
+    background: 'science-gradient',
+    surface: 'editorial-tabletop',
+    props: 'none',
+    aspectRatio: '3:4',
+    websiteCropSafe: true,
+  });
+  assert(
+    heroCropSafePrompt.includes('3:4 PORTRAIT SAFE ZONE DIRECTIVE') &&
+      heroCropSafePrompt.includes('8–12%') &&
+      heroCropSafePrompt.includes('mug handles') &&
+      !heroCropSafePrompt.includes('4:3') &&
+      !heroCropSafePrompt.includes('square (1:1)'),
+    'Standard Hero + Website Crop Safe must emit 3:4 portrait safe zone rules with 8-12% clearance, handle allowance, and zero obsolete 4:3/1:1 text'
+  );
+
+  const closeUpCropSafePrompt = buildChatGPTPhotoPrompt({
+    productType: 'hoodie',
+    orientation: 'flat-lay',
+    clothingPresentation: 'relaxed-natural-flat-lay',
+    shotType: 'design-close-up',
+    background: 'warm-ivory',
+    surface: 'light-wood',
+    props: 'none',
+    aspectRatio: '3:4',
+    websiteCropSafe: true,
+  });
+  assert(
+    closeUpCropSafePrompt.includes('3:4 PORTRAIT ARTWORK SAFE ZONE — DESIGN CLOSE-UP') &&
+      closeUpCropSafePrompt.includes('Outer Product Cropping Allowed') &&
+      !closeUpCropSafePrompt.includes('Keep the entire hero product, its primary silhouette') &&
+      !closeUpCropSafePrompt.includes('4:3'),
+    'Design Close-Up + Website Crop Safe must protect full artwork inside 3:4 safe zone and permit outer product cropping without full-silhouette contradiction'
+  );
+
+  // Verify legacy 4:3 crop-safe template detection and non-destructive preservation of custom non-legacy sections
+  const legacy43String = `WEBSITE CROP-SAFE COMPOSITION (4:3 SAFE ZONE DIRECTIVE):
+• The generated source image is square (1:1), but will subsequently be displayed and cropped by the website container to approximately a 4:3 aspect ratio.`;
+  assert(
+    isLegacyObsoleteCropSafeTemplate(legacy43String) === true,
+    'Must detect legacy obsolete 1:1-to-4:3 websiteCropSafe template'
+  );
+  assert(
+    isLegacyObsoleteCropSafeTemplate('Keep logos comfortably inside the 3:4 portrait center.') === false,
+    'Must NOT misclassify genuine custom non-legacy crop-safe instructions as obsolete'
+  );
+
+  const store = new Map<string, string>();
+  const mockWindow = {
+    localStorage: {
+      getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+    },
+    dispatchEvent: () => true,
+  };
+  const prevWindow = (globalThis as Record<string, unknown>).window;
+  (globalThis as Record<string, unknown>).window = mockWindow;
+  try {
+    store.set('scienceOfGifts_template_photography_websiteCropSafe', legacy43String);
+    store.set('scienceOfGifts_template_photography_headerAndRole', 'Custom Studio Header — Science of Gifts');
+
+    assert(
+      !getTemplateSection('photography', 'websiteCropSafe').includes('4:3') &&
+        getTemplateSection('photography', 'websiteCropSafe').includes('3:4'),
+      'Obsolete legacy 4:3 websiteCropSafe in localStorage must upgrade to 3:4 default cleanly'
+    );
+    assert(
+      getTemplateSection('photography', 'headerAndRole') === 'Custom Studio Header — Science of Gifts' &&
+        isTemplateCustomized('photography', 'headerAndRole') === true,
+      'Genuine user-customized template sections must remain completely intact'
+    );
+    const activePromptWithMigratedStorage = buildChatGPTPhotoPrompt({
+      productType: 'notebook',
+      orientation: 'flat-lay',
+      background: 'neutral-editorial',
+      surface: 'editorial-tabletop',
+      props: 'none',
+      aspectRatio: '3:4',
+      websiteCropSafe: true,
+    });
+    assert(
+      activePromptWithMigratedStorage.includes('Custom Studio Header — Science of Gifts') &&
+        !activePromptWithMigratedStorage.includes('4:3') &&
+        activePromptWithMigratedStorage.includes('3:4'),
+      'Active prompt must preserve custom non-legacy sections while containing zero obsolete 4:3 instructions'
+    );
+  } finally {
+    if (prevWindow === undefined) {
+      delete (globalThis as Record<string, unknown>).window;
+    } else {
+      (globalThis as Record<string, unknown>).window = prevWindow;
+    }
+  }
+  console.log('Test 26 Passed: Website Crop Safe (3:4 portrait, mode-aware, legacy safe) verified.');
+
+  // ==========================================
+  // AI Model Priority Manager, Gemini Fallback, Recognition Cache & Edit Guard Tests
+  // ==========================================
+  const {
+    DEFAULT_AI_MODEL_IDS,
+    getAiModels,
+    getEnabledModelIds,
+    moveAiModel,
+    toggleAiModel,
+    addAiModel,
+    updateAiModel,
+    removeAiModel,
+    restoreDefaultAiModels,
+    getLastRecognitionModel,
+    setLastRecognitionModel,
+    resetAiModelManagerForTests,
+  } = await import('../../../utils/aiModelManager');
+
+  // Test 27: AI Model priority list, CRUD operations, and persistence
+  resetAiModelManagerForTests();
+  const defaultIds = getAiModels().map((m) => m.id);
+  assert(
+    JSON.stringify(defaultIds) ===
+      JSON.stringify([
+        'gemini-4-hydrogen',
+        'gemini-3.8-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite',
+      ]),
+    'Default AI model priority list must match the 5 specified Gemini models in exact order'
+  );
+
+  moveAiModel(1, 'up'); // Move gemini-3.8-flash to #1
+  assert(
+    getEnabledModelIds()[0] === 'gemini-3.8-flash' &&
+      getEnabledModelIds()[1] === 'gemini-4-hydrogen',
+    'Moving model up must update enabled priority order immediately'
+  );
+
+  toggleAiModel(0); // Disable gemini-3.8-flash
+  assert(
+    !getEnabledModelIds().includes('gemini-3.8-flash') &&
+      getEnabledModelIds()[0] === 'gemini-4-hydrogen',
+    'Disabled models must be excluded from active fallback list'
+  );
+
+  const dupModelRes = addAiModel('gemini-4-hydrogen', 'Duplicate');
+  assert(dupModelRes.success === false, 'Adding duplicate model ID must be rejected');
+
+  const addCustomRes = addAiModel('gemini-4-argon', 'Gemini 4 Argon');
+  assert(
+    addCustomRes.success === true &&
+      addCustomRes.models.some((m) => m.id === 'gemini-4-argon'),
+    'Adding a new valid model ID must append it to configured models'
+  );
+
+  const editCustomRes = updateAiModel(addCustomRes.models.length - 1, {
+    id: 'gemini-4-argon-custom',
+    label: 'Custom Argon',
+  });
+  assert(
+    editCustomRes.success === true &&
+      editCustomRes.models.some((m) => m.id === 'gemini-4-argon-custom' && m.label === 'Custom Argon'),
+    'Editing a configured model ID and label must succeed'
+  );
+
+  const removeCustomRes = removeAiModel(editCustomRes.models.length - 1);
+  assert(
+    removeCustomRes.success === true &&
+      !removeCustomRes.models.some((m) => m.id === 'gemini-4-argon-custom'),
+    'Removing an obsolete model must delete it cleanly'
+  );
+
+  restoreDefaultAiModels();
+  assert(
+    JSON.stringify(getEnabledModelIds()) === JSON.stringify(DEFAULT_AI_MODEL_IDS),
+    'Restoring defaults must reset order and enablement to the 5 default models'
+  );
+
+  setLastRecognitionModel({ modelId: 'gemini-3.8-flash', timestamp: 1700000000000 });
+  assert(
+    getLastRecognitionModel()?.modelId === 'gemini-3.8-flash',
+    'Last successful recognition model must persist cleanly'
+  );
+  resetAiModelManagerForTests();
+  console.log('Test 27 Passed: AI Model priority list, reordering, CRUD, and defaults verified.');
+
+  // Test 28: Server-side Gemini Fallback, Error Classification & Cooldowns
+  const {
+    classifyGeminiError,
+    executeWithModelFallback,
+    ModelCooldownRegistry,
+  } = await import('../../../server/geminiFallback');
+
+  // 28a: Error classification distinguishes auth/billing, daily quota, rate limit, parameter error, and 404 retirement
+  assert(
+    classifyGeminiError({ status: 403, message: 'PERMISSION_DENIED: API_KEY_INVALID' }).category ===
+      'auth-error',
+    '403 / API_KEY_INVALID must classify as auth-error'
+  );
+  assert(
+    classifyGeminiError({
+      status: 429,
+      message: 'RESOURCE_EXHAUSTED: Quota exceeded for GenerateContentRequestsPerDay',
+    }).category === 'daily-quota',
+    'Daily RPD 429 must classify as daily-quota'
+  );
+  assert(
+    classifyGeminiError({
+      status: 429,
+      message: 'Too many requests, retry in 1.2s',
+    }).category === 'rate-limit',
+    'Short-term 429 without daily indicator must classify as rate-limit'
+  );
+  assert(
+    classifyGeminiError({
+      status: 400,
+      message: 'INVALID_ARGUMENT: thinking_level MINIMAL is not supported for this model',
+    }).retrySameModelWithoutThinking === true,
+    '400 thinking_level error must request parameter-strip retry on same model'
+  );
+  assert(
+    classifyGeminiError({
+      status: 404,
+      message: 'models/gemini-3.6-flash is not found for API version v1beta',
+    }).category === 'model-unavailable',
+    '404 model missing must classify as model-unavailable'
+  );
+
+  // 28b: Daily quota triggers fallback + cooldown skip on subsequent request
+  const cooldowns = new ModelCooldownRegistry();
+  const callCounts = new Map<string, number>();
+  const fallbackRun1 = await executeWithModelFallback({
+    candidateModels: ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.6-flash'],
+    cooldowns,
+    now: () => 1000,
+    sleep: async () => {},
+    invokeModel: async (modelId) => {
+      callCounts.set(modelId, (callCounts.get(modelId) || 0) + 1);
+      if (modelId === 'gemini-4-hydrogen') {
+        throw { status: 429, message: 'RESOURCE_EXHAUSTED: RequestsPerDay quota exceeded' };
+      }
+      if (modelId === 'gemini-3.8-flash') {
+        throw { status: 404, message: 'NOT_FOUND: model retired' };
+      }
+      return { ok: true, id: modelId };
+    },
+  });
+  assert(
+    fallbackRun1.ok === true &&
+      fallbackRun1.modelUsed === 'gemini-3.6-flash' &&
+      fallbackRun1.attemptedModels.length === 3,
+    'Fallback must skip daily-quota and 404 models and succeed on gemini-3.6-flash'
+  );
+
+  // Second request immediately skips cooled-down models without hitting them again
+  const fallbackRun2 = await executeWithModelFallback({
+    candidateModels: ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.6-flash'],
+    cooldowns,
+    now: () => 2000,
+    sleep: async () => {},
+    invokeModel: async (modelId) => {
+      callCounts.set(modelId, (callCounts.get(modelId) || 0) + 1);
+      return { ok: true, id: modelId };
+    },
+  });
+  assert(
+    fallbackRun2.ok === true &&
+      fallbackRun2.modelUsed === 'gemini-3.6-flash' &&
+      callCounts.get('gemini-4-hydrogen') === 1 &&
+      callCounts.get('gemini-3.8-flash') === 1 &&
+      callCounts.get('gemini-3.6-flash') === 2,
+    'Second request must jump directly to active fallback without retrying cooled-down models'
+  );
+
+  // 28c: Thinking parameter mismatch retries SAME model once without thinkingConfig
+  const observedParamRetry = { sawOmitThinking: false };
+  const paramRetryRun = await executeWithModelFallback({
+    candidateModels: ['gemini-4-hydrogen', 'gemini-3.8-flash'],
+    cooldowns: new ModelCooldownRegistry(),
+    sleep: async () => {},
+    invokeModel: async (modelId, capability) => {
+      if (modelId === 'gemini-4-hydrogen' && !capability.omitThinkingConfig) {
+        throw { status: 400, message: 'INVALID_ARGUMENT: thinkingConfig is not supported' };
+      }
+      observedParamRetry.sawOmitThinking = Boolean(capability.omitThinkingConfig);
+      return { recovered: modelId };
+    },
+  });
+  assert(
+    paramRetryRun.ok === true &&
+      paramRetryRun.modelUsed === 'gemini-4-hydrogen' &&
+      observedParamRetry.sawOmitThinking === true,
+    '400 thinkingConfig mismatch must retry same model without thinkingConfig and succeed'
+  );
+
+  // 28d: Auth/billing error halts fallback immediately without burning remaining models
+  const authAttempts: string[] = [];
+  const authFailRun = await executeWithModelFallback({
+    candidateModels: ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.6-flash'],
+    cooldowns: new ModelCooldownRegistry(),
+    sleep: async () => {},
+    invokeModel: async (modelId) => {
+      authAttempts.push(modelId);
+      throw { status: 403, message: 'PERMISSION_DENIED: API key not valid' };
+    },
+  });
+  assert(
+    authFailRun.ok === false &&
+      authFailRun.errorCode === 'AUTH_OR_BILLING_ERROR' &&
+      authAttempts.length === 1,
+    'Auth/billing error must abort fallback immediately on first attempt and NOT blame quota'
+  );
+  console.log('Test 28 Passed: Gemini error classification, cooldowns, parameter retry, and auth halt verified.');
+
+  // Test 29: Recognition Runner Caching & Concurrent Deduplication
+  const { createRecognitionRunner } = await import('../../../utils/imageAnalyzer');
+  let networkCallCount = 0;
+  const runner = createRecognitionRunner({
+    prepareImage: async (dataUrl) => ({
+      base64: `norm:${dataUrl}`,
+      mimeType: 'image/jpeg',
+      fingerprint: `fp:${dataUrl}`,
+    }),
+    sendRequest: async (payload) => {
+      networkCallCount += 1;
+      await new Promise((r) => setTimeout(r, 15));
+      return {
+        status: 200,
+        data: {
+          available: true,
+          modelUsed: payload.preferredModels[0],
+          attemptedModels: [payload.preferredModels[0]],
+          recognition: {
+            productType: 'mug',
+            customProductType: '',
+            detectedLabel: 'Ceramic Mug',
+            surfaceFormFactor: 'vessel',
+            confidence: 'high',
+            briefNotes: 'White ceramic mug with graphic',
+          },
+        },
+      };
+    },
+    getModels: () => ['gemini-4-hydrogen', 'gemini-3.8-flash'],
+  });
+
+  // Launch two concurrent calls for the same image
+  const [resA, resB] = await Promise.all([
+    runner.run('data:image/png;base64,AAA', 'mug-a.png'),
+    runner.run('data:image/png;base64,AAA', 'mug-b.png'),
+  ]);
+  assert(
+    resA.ok && resB.ok && networkCallCount === 1,
+    'Concurrent duplicate requests for same image must deduplicate to a single network call'
+  );
+
+  // Subsequent call for identical image hits cache with 0 additional network calls
+  const resCached = await runner.run('data:image/png;base64,AAA', 'mug-c.png');
+  assert(
+    resCached.ok && resCached.fromCache === true && networkCallCount === 1,
+    'Repeated analysis of identical image must return cached result without extra network request'
+  );
+
+  // Different image makes fresh request
+  const resDifferent = await runner.run('data:image/png;base64,BBB', 'hoodie.png');
+  assert(
+    resDifferent.ok && resDifferent.fromCache === false && networkCallCount === 2,
+    'Genuinely different image must trigger fresh recognition'
+  );
+  console.log('Test 29 Passed: Recognition caching and concurrent deduplication verified.');
+
+  // Test 30: Manual Prompt Edit Safeguard
+  const { resolveAutoPromptUpdate } = await import('../../../utils/promptEditGuard');
+  const protectedResult = resolveAutoPromptUpdate(
+    {
+      chatgptPrompt: 'User hand-edited ChatGPT prompt',
+      geminiPrompt: 'Auto Gemini v1',
+      manualEdits: { chatgpt: true, gemini: false },
+      pendingAutoPrompts: { chatgpt: null, gemini: null },
+    },
+    {
+      chatgpt: 'Auto ChatGPT v2',
+      gemini: 'Auto Gemini v2',
+    }
+  );
+  assert(
+    protectedResult.chatgptPrompt === 'User hand-edited ChatGPT prompt' &&
+      protectedResult.pendingAutoPrompts.chatgpt === 'Auto ChatGPT v2' &&
+      protectedResult.geminiPrompt === 'Auto Gemini v2' &&
+      protectedResult.pendingAutoPrompts.gemini === null,
+    'Manual edit safeguard must preserve manually edited ChatGPT prompt in pendingAutoPrompts while updating untouched Gemini prompt'
+  );
+  console.log('Test 30 Passed: Manual prompt edit safeguard verified.');
+
+  // Test 31: Cloudflare Worker (worker.ts) routing, /api/recognize-product validation & SPA isolation
+  const workerMod = await import('../../../../worker');
+  const workerHandler = workerMod.default;
+  const assetCalls: string[] = [];
+  const mockAssets = {
+    fetch: async (req: Request | string) => {
+      const targetUrl = typeof req === 'string' ? req : req.url;
+      assetCalls.push(targetUrl);
+      return new Response('<!doctype html><html><body>SPA</body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      });
+    },
+  };
+
+  // 31a: /api/health checks env.GEMINI_API_KEY without calling ASSETS
+  const healthNoKeyRes = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/api/health'),
+    { ASSETS: mockAssets }
+  );
+  const healthNoKeyJson = await healthNoKeyRes.json();
+  assert(
+    healthNoKeyRes.status === 200 &&
+      healthNoKeyJson.ok === true &&
+      healthNoKeyJson.recognitionAvailable === false &&
+      assetCalls.length === 0,
+    'GET /api/health without key must return JSON with recognitionAvailable=false and never touch ASSETS'
+  );
+
+  // 31b: POST /api/recognize-product with missing GEMINI_API_KEY returns clean 503 JSON
+  const missingKeyRes = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/api/recognize-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: 'AAAA', mimeType: 'image/jpeg' }),
+    }),
+    { ASSETS: mockAssets }
+  );
+  const missingKeyJson = await missingKeyRes.json();
+  assert(
+    missingKeyRes.status === 503 &&
+      missingKeyJson.available === false &&
+      missingKeyJson.errorCode === 'API_KEY_MISSING' &&
+      assetCalls.length === 0,
+    'POST /api/recognize-product missing GEMINI_API_KEY must return 503 JSON'
+  );
+
+  // 31c: POST /api/recognize-product rejects unsupported MIME types and malformed base64
+  const badMimeRes = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/api/recognize-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: 'AAAA', mimeType: 'image/svg+xml' }),
+    }),
+    { ASSETS: mockAssets, GEMINI_API_KEY: 'test-key-placeholder' }
+  );
+  assert(
+    badMimeRes.status === 400 && (await badMimeRes.json()).errorCode === 'UNSUPPORTED_IMAGE_FORMAT',
+    'Unsupported image mime type must return 400 UNSUPPORTED_IMAGE_FORMAT'
+  );
+
+  const badBase64Res = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/api/recognize-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: 'not!valid!base64', mimeType: 'image/jpeg' }),
+    }),
+    { ASSETS: mockAssets, GEMINI_API_KEY: 'test-key-placeholder' }
+  );
+  assert(
+    badBase64Res.status === 400 && (await badBase64Res.json()).errorCode === 'MALFORMED_IMAGE_BASE64',
+    'Malformed base64 image must return 400 MALFORMED_IMAGE_BASE64'
+  );
+
+  // 31d: Unmatched /api/* route returns 404 JSON instead of SPA index.html
+  const unknownApiRes = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/api/does-not-exist'),
+    { ASSETS: mockAssets, GEMINI_API_KEY: 'test-key-placeholder' }
+  );
+  assert(
+    unknownApiRes.status === 404 &&
+      Boolean(unknownApiRes.headers.get('Content-Type')?.includes('application/json')) &&
+      assetCalls.length === 0,
+    'Unknown /api/* route must return 404 JSON and never fall through to ASSETS index.html'
+  );
+
+  // 31e: Frontend / SPA navigation routes delegate cleanly to env.ASSETS.fetch
+  const spaRes = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/settings'),
+    { ASSETS: mockAssets }
+  );
+  assert(
+    spaRes.status === 200 &&
+      assetCalls.length === 1 &&
+      assetCalls[0] === 'https://prompt-studio.workers.dev/settings',
+    'Frontend SPA routes must delegate to env.ASSETS.fetch'
+  );
+  console.log('Test 31 Passed: Cloudflare Worker (worker.ts) routing, payload validation, and SPA asset delegation verified.');
+
+  console.log('All Prompt Studio photography, clothing, Gift Guide Hero, Smart Setup, Next Look, Design Close-Up, 3:4 Ratio, Crop-Safe, AI Model Fallback, Cache, Edit Safeguard, Worker Routing, and Product Copy tests passed successfully!');
 }
 
 runTests();
