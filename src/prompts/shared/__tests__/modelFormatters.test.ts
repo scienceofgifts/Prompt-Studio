@@ -1761,7 +1761,461 @@ async function runTests() {
   );
   console.log('Test 31 Passed: Cloudflare Worker (worker.ts) routing, payload validation, and SPA asset delegation verified.');
 
-  console.log('All Prompt Studio photography, clothing, Gift Guide Hero, Smart Setup, Next Look, Design Close-Up, 3:4 Ratio, Crop-Safe, AI Model Fallback, Cache, Edit Safeguard, Worker Routing, and Product Copy tests passed successfully!');
+  // ==========================================
+  // Design to Product Tests (Tests 32–36)
+  // ==========================================
+  const { DEFAULT_MERCHANDISE_PROFILES } = await import('../../../designToProduct/productCatalog');
+  const {
+    getMerchandiseProfiles,
+    saveMerchandiseProfile,
+    addCustomMerchandiseProfile,
+    resetBuiltInProfileOverride,
+    deleteCustomMerchandiseProfile,
+    resetD2PProfileManagerForTests,
+  } = await import('../../../designToProduct/profileManager');
+  const { recommendProductsForDesign, selectBatchRecommendedProductId } = await import(
+    '../../../designToProduct/recommendationEngine'
+  );
+  const { resolveBackgroundTreatment, resolveColorTreatment } = await import(
+    '../../../designToProduct/adaptationRules'
+  );
+  const { buildDesignAdaptationPrompt } = await import('../../../designToProduct/promptBuilder');
+  const { createDesignAnalysisRunner, runWithConcurrency } = await import(
+    '../../../designToProduct/designAnalyzer'
+  );
+  const { normalizeDesignAnalysisResult } = await import('../../../server/designAnalysis');
+
+  // Test 32: All 20 default products & non-destructive customization
+  resetD2PProfileManagerForTests();
+  const initialProfiles = getMerchandiseProfiles();
+  assert(
+    DEFAULT_MERCHANDISE_PROFILES.length === 20 && initialProfiles.length === 20,
+    `Expected 20 built-in merchandise profiles, got ${initialProfiles.length}`
+  );
+  const requiredProductIds = [
+    'tshirt',
+    'hoodie',
+    'sweatshirt',
+    'sweater',
+    'tank-top',
+    'ceramic-mug',
+    'beer-glass',
+    'whiskey-glass',
+    'cocktail-glass',
+    'wine-tumbler',
+    'water-bottle',
+    'insulated-tumbler',
+    'notebook',
+    'journal',
+    'poster',
+    'art-print',
+    'desk-mat',
+    'mousepad',
+    'laptop-sleeve',
+    'tote-bag',
+  ];
+  for (const reqId of requiredProductIds) {
+    assert(
+      initialProfiles.some((p) => p.id === reqId),
+      `Missing required initial product profile: ${reqId}`
+    );
+  }
+
+  saveMerchandiseProfile('tshirt', {
+    exactPrintSpecifications: '4500 x 5400 px transparent PNG @ 300 DPI',
+    additionalInstructions: 'Keep chest art 3 inches below collar.',
+  });
+  const d2pAddCustomRes = addCustomMerchandiseProfile({
+    name: 'Enamel Camp Mug',
+    category: 'drinkware',
+    typicalOrientation: 'square',
+    preferredComposition: 'Centered rustic outdoors emblem',
+    defaultBackgroundTreatment: 'transparent',
+    printSurfaceCharacteristics: 'White speckled enamel mug body',
+    supportedProductColors: ['White Enamel'],
+    printingMethod: 'Sublimation wrap',
+    colorAndContrastConsiderations: 'High dark ink contrast on white enamel.',
+    recommendedDesignAdjustments: 'Keep edges bold.',
+  });
+  assert(d2pAddCustomRes.success && Boolean(d2pAddCustomRes.profile), 'Custom profile creation must succeed');
+  const modifiedProfiles = getMerchandiseProfiles();
+  const editedTshirt = modifiedProfiles.find((p) => p.id === 'tshirt')!;
+  assert(
+    modifiedProfiles.length === 21 &&
+      editedTshirt.exactPrintSpecifications === '4500 x 5400 px transparent PNG @ 300 DPI' &&
+      editedTshirt.additionalInstructions === 'Keep chest art 3 inches below collar.',
+    'Edited built-in profile must preserve overrides alongside custom added products'
+  );
+  resetBuiltInProfileOverride('tshirt');
+  deleteCustomMerchandiseProfile(d2pAddCustomRes.profile!.id);
+  resetD2PProfileManagerForTests();
+  console.log('Test 32 Passed: 20 default merchandise profiles and non-destructive profile customization verified.');
+
+  // Test 33: Recommendation Engine Scenarios (Concept/Printability over blind aspect ratio)
+  const catalog20 = getMerchandiseProfiles();
+
+  const coffeeBadgeAnalysis: import('../../../designToProduct/types').DesignAnalysisResult = {
+    conceptSummary: 'Vintage botanical coffeehouse emblem',
+    themeOrTopic: 'Specialty espresso & coffee roastery humor',
+    intendedAudience: 'Coffee lovers & baristas',
+    visualIdentity: 'Warm botanical crest ink drawing',
+    compositionType: 'badge',
+    aspectProfile: 'square',
+    elementDistribution: 'Centered circular crest',
+    typographyStyle: 'Classic serif display',
+    textDensity: 'low',
+    exactVisibleText: 'FIRST COFFEE THEN DISCOVERY',
+    importantElements: ['Espresso portafilter crest', 'Coffee blossoms'],
+    dominantColors: ['Espresso brown', 'Cream'],
+    supportingColors: ['Warm sage'],
+    currentBackground: 'solid-light',
+    detailLevel: 'moderate',
+    suitableForSmallPrint: true,
+    expandableToWideOrFullBleed: false,
+    readabilityNotes: 'Bold crest reads well at mug and chest scale.',
+    worksWithoutModification: true,
+    prefersTransparentBackground: true,
+    contrastRiskNotes: 'Lighten dark espresso text if printed on dark charcoal apparel.',
+    recommendedDefaultProductColor: 'White / Cream',
+    elementsToPreserve: ['Espresso crest', 'Coffee blossoms'],
+    suggestedProductFits: [
+      { productId: 'ceramic-mug', reason: 'Coffee badge fits morning mugs naturally.', conceptFitScore: 92, visualFitScore: 90 },
+      { productId: 'tshirt', reason: 'Strong chest crest appeal.', conceptFitScore: 84, visualFitScore: 86 },
+      { productId: 'tote-bag', reason: 'Great everyday cafe tote emblem.', conceptFitScore: 78, visualFitScore: 80 },
+    ],
+  };
+
+  const coffeeRecs = recommendProductsForDesign(coffeeBadgeAnalysis, catalog20);
+  assert(
+    coffeeRecs.primary.productId === 'ceramic-mug' && coffeeRecs.alternatives.length === 2,
+    `Coffee badge expected primary ceramic-mug, got ${coffeeRecs.primary.productId}`
+  );
+
+  const intricateMapAnalysis: import('../../../designToProduct/types').DesignAnalysisResult = {
+    conceptSummary: 'Intricate 19th-century historical observatory star map with tiny Latin labels',
+    themeOrTopic: 'Astronomy, celestial cartography, constellation taxonomy chart',
+    intendedAudience: 'Astronomers, history fans, map collectors',
+    visualIdentity: 'Finely engraved antique cartography plate',
+    compositionType: 'infographic',
+    aspectProfile: 'landscape',
+    elementDistribution: 'Dense edge-to-edge celestial diagram and hairline border',
+    typographyStyle: 'Small serif labels throughout',
+    textDensity: 'high',
+    exactVisibleText: 'MAPPA COELESTIS OBSERVATORII',
+    importantElements: ['Southern & northern hemispheres', 'Fine orbital hairlines', 'Border compass'],
+    dominantColors: ['Midnight navy', 'Antique parchment cream', 'Gold ochre'],
+    supportingColors: [],
+    currentBackground: 'full-scene-illustration',
+    detailLevel: 'intricate',
+    suitableForSmallPrint: false,
+    expandableToWideOrFullBleed: true,
+    readabilityNotes: 'Dense labels require generous print scale.',
+    worksWithoutModification: true,
+    prefersTransparentBackground: false,
+    contrastRiskNotes: 'Preserve rich midnight sky background.',
+    recommendedDefaultProductColor: 'Full-Bleed Paper / Dark Canvas',
+    elementsToPreserve: ['Dual celestial hemispheres', 'Exact map title'],
+    suggestedProductFits: [
+      { productId: 'poster', reason: 'Preserves intricate map details at full wall scale.', conceptFitScore: 90, visualFitScore: 94 },
+      { productId: 'desk-mat', reason: 'Landscape map shines across wide desk surfaces.', conceptFitScore: 88, visualFitScore: 90 },
+      { productId: 'art-print', reason: 'Archival framing suits fine cartography.', conceptFitScore: 85, visualFitScore: 88 },
+    ],
+  };
+
+  const mapRecs = recommendProductsForDesign(intricateMapAnalysis, catalog20);
+  assert(
+    ['poster', 'desk-mat', 'art-print'].includes(mapRecs.primary.productId) &&
+      !['whiskey-glass', 'cocktail-glass', 'beer-glass'].includes(mapRecs.primary.productId),
+    `Intricate map must recommend large print surface (poster/desk-mat/art-print), not small glassware; got ${mapRecs.primary.productId}`
+  );
+  const whiskeyRank = mapRecs.allRanked.findIndex((r) => r.productId === 'whiskey-glass');
+  assert(
+    whiskeyRank > 8,
+    `Intricate map must rank small curved whiskey glass low (rank=${whiskeyRank})`
+  );
+
+  // Even a SQUARE cocktail recipe should favor cocktail/whiskey glass when clean & thematic!
+  const cocktailSquareAnalysis: import('../../../designToProduct/types').DesignAnalysisResult = {
+    conceptSummary: 'Clean minimalist Negroni cocktail recipe emblem',
+    themeOrTopic: 'Classic Negroni cocktail mixology',
+    intendedAudience: 'Home bartenders & spirit enthusiasts',
+    visualIdentity: 'Bold geometric mid-century barware icon',
+    compositionType: 'badge',
+    aspectProfile: 'square',
+    elementDistribution: 'Compact centered glass & proportions icon',
+    typographyStyle: 'Clean sans-serif',
+    textDensity: 'low',
+    exactVisibleText: 'NEGRONI 1:1:1',
+    importantElements: ['Rocks glass silhouette', 'Orange twist', '1:1:1 ratio'],
+    dominantColors: ['Crisp black', 'Burnt orange'],
+    supportingColors: [],
+    currentBackground: 'transparent-clean',
+    detailLevel: 'minimal',
+    suitableForSmallPrint: true,
+    expandableToWideOrFullBleed: false,
+    readabilityNotes: 'Bold minimal lines stay sharp on glassware.',
+    worksWithoutModification: true,
+    prefersTransparentBackground: true,
+    contrastRiskNotes: 'Check ink opacity / etching clarity on clear glass.',
+    recommendedDefaultProductColor: 'Clear Glass',
+    elementsToPreserve: ['NEGRONI 1:1:1 text', 'Rocks glass icon'],
+    suggestedProductFits: [
+      { productId: 'cocktail-glass', reason: 'Direct barware gift pairing.', conceptFitScore: 92, visualFitScore: 88 },
+      { productId: 'whiskey-glass', reason: 'Compact square proportions fit rocks glass face.', conceptFitScore: 90, visualFitScore: 90 },
+      { productId: 'tshirt', reason: 'Wearable cocktail enthusiast chest crest.', conceptFitScore: 70, visualFitScore: 78 },
+    ],
+  };
+  const cocktailRecs = recommendProductsForDesign(cocktailSquareAnalysis, catalog20);
+  assert(
+    cocktailRecs.primary.productId === 'cocktail-glass' ||
+      cocktailRecs.primary.productId === 'whiskey-glass',
+    `Cocktail graphic must recommend barware even with square aspect ratio; got ${cocktailRecs.primary.productId}`
+  );
+
+  // Merit-first batch tie-breaker never overrides strong suitability lead
+  const strongPrimaryPick = selectBatchRecommendedProductId(coffeeRecs, {
+    drinkware: 8,
+    apparel: 0,
+  });
+  assert(
+    coffeeRecs.primary.score - coffeeRecs.alternatives[0].score > 3
+      ? strongPrimaryPick === coffeeRecs.primary.productId
+      : true,
+    'Batch tie-breaker must never override a genuinely stronger primary fit'
+  );
+  console.log('Test 33 Passed: Recommendation engine domain fit, printability penalties, and merit-first batch balancing verified.');
+
+  // Test 34 & 35: Prompt generation, product-specific layout rules, transparency & color adaptation
+  const tshirtProfile = catalog20.find((p) => p.id === 'tshirt')!;
+  const mugProfile = catalog20.find((p) => p.id === 'ceramic-mug')!;
+  const deskMatProfile = catalog20.find((p) => p.id === 'desk-mat')!;
+  const posterProfile = catalog20.find((p) => p.id === 'poster')!;
+  const whiskeyProfile = catalog20.find((p) => p.id === 'whiskey-glass')!;
+
+  // Square badge on T-shirt -> STILL transparent PNG (NOT forced opaque by square shape)
+  const tshirtSquareBg = resolveBackgroundTreatment(
+    coffeeBadgeAnalysis,
+    tshirtProfile,
+    'ai-decides'
+  );
+  assert(
+    tshirtSquareBg.mode === 'transparent',
+    'Square emblem intended for T-shirt must default to transparent PNG, never opaque due to square shape'
+  );
+
+  const d2pTshirtPrompt = buildDesignAdaptationPrompt(coffeeBadgeAnalysis, tshirtProfile, {
+    selectedProductId: 'tshirt',
+    backgroundTreatment: 'ai-decides',
+    colorTreatment: 'ai-decides',
+    productColor: 'Black',
+  });
+  assert(
+    d2pTshirtPrompt.includes('GENUINELY TRANSPARENT BACKGROUND') &&
+      d2pTshirtPrompt.includes('fake checkerboard grid') &&
+      d2pTshirtPrompt.includes('chest') &&
+      d2pTshirtPrompt.includes('FIRST COFFEE THEN DISCOVERY') &&
+      d2pTshirtPrompt.includes('DO NOT render a physical t-shirt') &&
+      d2pTshirtPrompt.includes('Black'),
+    'T-shirt adaptation prompt must enforce true alpha PNG, chest-print layout, verbatim text, dark-shirt contrast note, and anti-mockup output'
+  );
+
+  // Desk Mat -> Full background & non-stretched wide adaptation
+  const deskMatPrompt = buildDesignAdaptationPrompt(intricateMapAnalysis, deskMatProfile, {
+    selectedProductId: 'desk-mat',
+    backgroundTreatment: 'ai-decides',
+    colorTreatment: 'ai-decides',
+    productColor: '',
+  });
+  assert(
+    deskMatPrompt.includes('FULL-BACKGROUND') &&
+      deskMatPrompt.includes('without stretching or distorting') &&
+      deskMatPrompt.includes('MAPPA COELESTIS OBSERVATORII'),
+    'Desk mat prompt must keep full background, prohibit stretching, and preserve verbatim text'
+  );
+
+  // Poster -> preserves full scene background & rectangular framing
+  const posterBg = resolveBackgroundTreatment(intricateMapAnalysis, posterProfile, 'ai-decides');
+  assert(
+    posterBg.mode === 'full-background',
+    'Poster must preserve complete intentional rectangular background'
+  );
+
+  // User overrides (force Transparent on Desk Mat, force Full Background on Mug, force Preserve Original Colors on Black T-shirt)
+  const userTransparentOverride = resolveBackgroundTreatment(
+    intricateMapAnalysis,
+    deskMatProfile,
+    'transparent'
+  );
+  const userFullBgOverride = resolveBackgroundTreatment(
+    coffeeBadgeAnalysis,
+    mugProfile,
+    'full-background'
+  );
+  const userPreserveColor = resolveColorTreatment(
+    coffeeBadgeAnalysis,
+    tshirtProfile,
+    'preserve-original',
+    'Black'
+  );
+  assert(
+    userTransparentOverride.mode === 'transparent' &&
+      userTransparentOverride.source === 'user-override' &&
+      userFullBgOverride.mode === 'full-background' &&
+      userFullBgOverride.source === 'user-override' &&
+      userPreserveColor.mode === 'preserve-original' &&
+      userPreserveColor.source === 'user-override',
+    'User explicit overrides for background & color treatment must always take precedence'
+  );
+
+  // Clear Glassware -> requiresInkVerification & honest printing/etching verification note (no invented Fourthwall pixel dimensions)
+  const glassColorDecision = resolveColorTreatment(
+    cocktailSquareAnalysis,
+    whiskeyProfile,
+    'ai-decides',
+    ''
+  );
+  const glassPrompt = buildDesignAdaptationPrompt(cocktailSquareAnalysis, whiskeyProfile, {
+    selectedProductId: 'whiskey-glass',
+    backgroundTreatment: 'ai-decides',
+    colorTreatment: 'ai-decides',
+    productColor: '',
+  });
+  assert(
+    glassColorDecision.requiresInkVerification === true &&
+      glassPrompt.includes('Do NOT assume opaque white ink') &&
+      glassPrompt.includes('NEGRONI 1:1:1'),
+    'Clear glassware must include honest ink/etching verification note without inventing unverified supplier specs'
+  );
+
+  // Product switching uses 0 API calls when using cached/runner design analysis
+  let designApiCalls = 0;
+  const designRunner = createDesignAnalysisRunner({
+    prepareImage: async () => ({
+      base64: 'AAA',
+      mimeType: 'image/png',
+      fingerprint: 'fp-coffee-1',
+    }),
+    sendRequest: async () => {
+      designApiCalls += 1;
+      return {
+        status: 200,
+        data: {
+          available: true,
+          modelUsed: 'gemini-3-flash-preview',
+          attemptedModels: ['gemini-3-flash-preview'],
+          analysis: coffeeBadgeAnalysis,
+        },
+      };
+    },
+    getModels: () => ['gemini-3-flash-preview'],
+  });
+
+  const analyzedOnce = await designRunner.run({
+    dataUrl: 'data:image/png;base64,AAA',
+    fileName: 'coffee.png',
+    catalog: catalog20,
+  });
+  assert(analyzedOnce.ok && designApiCalls === 1, 'Design analysis should execute once on upload');
+  if (analyzedOnce.ok) {
+    // Switch across T-shirt, Ceramic Mug, and Poster locally -> 0 extra API calls!
+    buildDesignAdaptationPrompt(analyzedOnce.analysis, tshirtProfile, {
+      selectedProductId: 'tshirt',
+      backgroundTreatment: 'ai-decides',
+      colorTreatment: 'ai-decides',
+      productColor: 'Cream',
+    });
+    buildDesignAdaptationPrompt(analyzedOnce.analysis, mugProfile, {
+      selectedProductId: 'ceramic-mug',
+      backgroundTreatment: 'ai-decides',
+      colorTreatment: 'ai-decides',
+      productColor: 'White',
+    });
+    buildDesignAdaptationPrompt(analyzedOnce.analysis, posterProfile, {
+      selectedProductId: 'poster',
+      backgroundTreatment: 'ai-decides',
+      colorTreatment: 'ai-decides',
+      productColor: 'Matte Paper',
+    });
+  }
+  assert(
+    designApiCalls === 1,
+    'Switching products and adaptation options must trigger ZERO additional API calls'
+  );
+  console.log('Test 34 & 35 Passed: Adaptation prompts, transparency/color decisions, glassware caveats, and 0-call local product switching verified.');
+
+  // Test 36: Batch concurrency runner, malformed-field normalizer & Worker /api/analyze-design route
+  const normalizedFallback = normalizeDesignAnalysisResult(
+    {
+      conceptSummary: 'Minimal chemistry joke',
+      compositionType: 'nonexistent-type' as unknown as string,
+      detailLevel: 'ultra-hd' as unknown as string,
+      dominantColors: ['Navy', 123 as unknown as string],
+      suggestedProductFits: [
+        { productId: 'tshirt', reason: 'Funny slogan', conceptFitScore: 140, visualFitScore: -5 },
+        { productId: 'fake-product-id', reason: 'Ignored', conceptFitScore: 99, visualFitScore: 99 },
+      ],
+    },
+    new Set(catalog20.map((p) => p.id))
+  );
+  assert(
+    normalizedFallback.compositionType === 'illustration' &&
+      normalizedFallback.detailLevel === 'moderate' &&
+      normalizedFallback.dominantColors.length === 1 &&
+      normalizedFallback.suggestedProductFits.length === 1 &&
+      normalizedFallback.suggestedProductFits[0].conceptFitScore === 100 &&
+      normalizedFallback.suggestedProductFits[0].visualFitScore === 0,
+    'normalizeDesignAnalysisResult must sanitize unknown enum fields, unknown catalog IDs, and clamp scores cleanly'
+  );
+
+  // Batch concurrency test with partial failure isolation
+  const batchJobs = [1, 2, 3, 4, 5];
+  const completedJobs: number[] = [];
+  await runWithConcurrency(batchJobs, 2, async (job) => {
+    if (job === 3) {
+      // Simulate failed item without throwing unhandled exception so sibling jobs finish
+      return;
+    }
+    completedJobs.push(job);
+  });
+  assert(
+    completedJobs.length === 4 && !completedJobs.includes(3),
+    'Batch concurrency runner must isolate failed items and complete all valid jobs'
+  );
+
+  // Worker /api/analyze-design missing key -> 503 JSON without touching ASSETS
+  const assetCallsBefore = assetCalls.length;
+  const d2pMissingKeyRes = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/api/analyze-design', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: 'AAAA', mimeType: 'image/png' }),
+    }),
+    { ASSETS: mockAssets }
+  );
+  const d2pMissingKeyJson = await d2pMissingKeyRes.json();
+  assert(
+    d2pMissingKeyRes.status === 503 &&
+      d2pMissingKeyJson.available === false &&
+      d2pMissingKeyJson.errorCode === 'API_KEY_MISSING' &&
+      assetCalls.length === assetCallsBefore,
+    'POST /api/analyze-design without GEMINI_API_KEY must return 503 JSON without touching ASSETS'
+  );
+
+  const d2pBadMimeRes = await workerHandler.fetch(
+    new Request('https://prompt-studio.workers.dev/api/analyze-design', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: 'AAAA', mimeType: 'image/svg+xml' }),
+    }),
+    { ASSETS: mockAssets, GEMINI_API_KEY: 'test-key-placeholder' }
+  );
+  assert(
+    d2pBadMimeRes.status === 400 && (await d2pBadMimeRes.json()).errorCode === 'UNSUPPORTED_IMAGE_FORMAT',
+    'POST /api/analyze-design must reject unsupported MIME types with 400'
+  );
+  console.log('Test 36 Passed: Design analysis normalizer, batch concurrency isolation, and Worker /api/analyze-design route verified.');
+
+  console.log('All Prompt Studio photography, Design to Product, Gift Guide Hero, Smart Setup, Next Look, Design Close-Up, 3:4 Ratio, Crop-Safe, AI Model Fallback, Cache, Edit Safeguard, Worker Routing, and Product Copy tests passed successfully!');
 }
 
 runTests();

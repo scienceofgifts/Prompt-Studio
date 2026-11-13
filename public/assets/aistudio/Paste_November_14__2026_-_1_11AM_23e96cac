@@ -1,0 +1,894 @@
+# Science of Gifts Prompt Studio: Build the Design to Product Tool
+
+## Project Objective
+
+Add a new tool called **Design to Product** to the existing Science of Gifts Prompt Studio application.
+
+This tool should eliminate the repetitive mental work of deciding which physical merchandise product is best suited to a finished graphic design.
+
+I create merchandise for my Science of Gifts store using Fourthwall. I often have 10 to 30 completed designs ready for production, but deciding which product each design belongs on slows down the entire workflow.
+
+The new tool should use AI to analyze uploaded artwork, intelligently recommend suitable merchandise products, and generate detailed, product-specific adaptation prompts that I can copy into ChatGPT to transform the original artwork into production-appropriate designs.
+
+**The central principle: The application should make intelligent decisions for me rather than presenting more manual settings.**
+
+The ideal workflow is:
+
+1. Upload a finished design.
+2. AI analyzes the artwork and recommends the best product.
+3. Accept the recommendation or select an alternative.
+4. Copy an automatically generated adaptation prompt.
+5. Use ChatGPT to adapt the artwork for the selected product.
+
+The application should handle most decisions automatically, including layout, transparent backgrounds, print contrast, color adaptation, and composition.
+
+This must be a fully functional addition to the existing app, not a standalone mockup.
+
+---
+
+# 1. Integration with Existing Prompt Studio
+
+Create a new main tool named:
+
+**Design to Product**
+
+Add it to the existing application navigation alongside:
+
+- Product Photography
+- Gift Guide Hero
+- Product Copy
+
+Use the existing visual design system, typography, spacing, components, and interface conventions.
+
+Do not redesign the application.
+
+Keep the new tool modular, with its own components, state management, product profiles, and prompt-generation logic.
+
+Reuse existing shared infrastructure where appropriate.
+
+In particular, reuse:
+
+- Existing Gemini API integration
+- Existing configurable model fallback system
+- Existing Cloudflare Worker backend
+- Existing settings persistence patterns
+- Existing image upload conventions
+- Existing prompt output and copy functionality
+
+Do not modify the behavior of existing tools unless required for a safe shared integration.
+
+# 2. Automatic Artwork Analysis
+
+When a user uploads an image containing a finished design, automatically analyze it using Gemini.
+
+The uploaded image is the authoritative source of truth.
+
+Gemini should identify:
+
+### Design concept
+
+- The actual idea or joke behind the artwork
+- The topic, theme, or cultural reference
+- Any obvious intended audience or gift recipient
+- The visual identity and aesthetic
+- Whether the artwork resembles a badge, logo, illustration, pattern, slogan, poster, or another composition type
+
+### Visual composition
+
+- Aspect ratio and general proportions
+- Distribution of visual elements
+- Typography and approximate text density
+- Important text and illustrations
+- Dominant and supporting colors
+- Background treatment
+- Level of visual detail
+- Whether the artwork is suitable for a small print area
+- Whether it can be expanded into a wide or full-bleed composition
+
+### Production considerations
+
+- Likely readability at different sizes
+- Whether the existing composition works without modification
+- Whether a transparent background would be desirable
+- Whether certain product colors would create contrast problems
+- Which design elements should be preserved during adaptation
+
+Recognize the distinction between the meaning of the design and its visual appearance.
+
+For example, a design referencing a cocktail recipe might be particularly appropriate for drinking glassware, even if its existing composition is square.
+
+Do not base recommendations entirely on image dimensions.
+
+Do not invent text, characters, illustrations, or references that are not visible or reasonably supported.
+
+If the artwork contains readable text, preserve its exact spelling and wording in the analysis.
+
+Use a concise structured JSON response that the application can validate.
+
+# 3. Intelligent Product Recommendations
+
+After analyzing the image, recommend the most appropriate physical merchandise products.
+
+The recommendations should consider:
+
+1. **Conceptual fit:** Does the product make sense for the idea or joke?
+2. **Visual fit:** Does the artwork suit the product's printable shape and area?
+3. **Gift appeal:** Would the combination make a compelling gift for its intended recipient?
+4. **Practical usefulness:** Does the product complement the design's purpose?
+5. **Adaptation effort:** How much redesign would be needed?
+6. **Commercial appeal:** Is the combination likely to look intentional and desirable rather than randomly placing artwork on merchandise?
+
+The application should make one clear primary recommendation.
+
+Also display two suitable alternatives.
+
+Do not present every available product as an equally good recommendation.
+
+Do not artificially force product diversity when a particular design genuinely belongs on apparel or another specific product.
+
+If a design is unsuitable for certain products, the recommendation engine should recognize that.
+
+## Supported products
+
+Include the following products in the initial product catalog:
+
+### Apparel
+
+- T-shirt
+- Hoodie
+- Sweatshirt
+- Sweater
+- Tank top
+
+### Drinkware
+
+- Ceramic mug
+- Beer glass
+- Whiskey glass
+- Cocktail glass
+- Wine tumbler
+- Water bottle
+- Insulated tumbler
+
+### Paper and wall art
+
+- Notebook
+- Journal
+- Poster
+- Art print
+
+### Desk and accessories
+
+- Desk mat
+- Mousepad
+- Laptop sleeve
+- Tote bag
+
+Allow the product catalog to be expanded later through Settings.
+
+Each product should have an internal profile defining its common artwork requirements and adaptation considerations.
+
+Do not assume that all products use the same printing process.
+
+## Recommendation interface
+
+After analysis, display:
+
+**Recommended Product**
+
+- Product name
+- One short explanation of why it fits
+- A clear selection action
+
+**Alternatives**
+
+- Two secondary product recommendations
+- Short explanations
+
+Also allow the user to choose any product manually from the full catalog.
+
+Do not require the user to answer additional questions before receiving recommendations.
+
+Keep explanations concise and specific.
+
+# 4. Product Adaptation Prompt Generator
+
+After a product is selected, automatically create a detailed adaptation prompt designed for ChatGPT image generation and editing.
+
+The user will upload the original artwork to ChatGPT together with this prompt.
+
+**The application does not need to generate or modify the final image itself.**
+
+Its responsibility is to generate precise instructions for the image-editing AI.
+
+The prompt must be tailored to:
+
+- The actual uploaded design
+- The selected merchandise product
+- The artwork's composition
+- The artwork's meaning and visual identity
+- The selected product's intended print surface
+- Transparency requirements
+- Color and contrast requirements
+- The appropriate composition and layout
+
+Avoid generic prompts that merely say "make this suitable for a T-shirt."
+
+Generate actionable art-direction instructions.
+
+## Adaptation principles
+
+Preserve the original design's:
+
+- Central concept
+- Humor or intended message
+- Important illustrations
+- Typography and wording
+- Overall artistic identity
+- Recognizable visual motifs
+
+Change the composition when necessary for the selected product.
+
+Allowed modifications can include:
+
+- Rearranging graphic elements
+- Rebalancing typography
+- Changing the aspect ratio and layout
+- Removing unnecessary backgrounds
+- Adding complementary borders or ornaments
+- Extending backgrounds or patterns
+- Adjusting spacing and margins
+- Adapting colors for legibility
+- Simplifying excessive detail for small print areas
+
+Do not introduce unrelated objects or decorative elements.
+
+Do not rewrite jokes, change wording, or distort lettering.
+
+Avoid making unnecessary changes when the existing artwork already suits the selected product.
+
+The adaptation should look professionally designed specifically for the chosen product, rather than mechanically resized.
+
+# 5. Product-Specific Design Rules
+
+Use different adaptation strategies for different product types.
+
+## T-shirts, hoodies, sweatshirts, and tank tops
+
+Favor intentional chest-print compositions.
+
+Depending on the artwork, use:
+
+- Centered graphics
+- Typography-led layouts
+- Emblems and badges
+- Vertical arrangements
+- Compact illustrations
+
+When appropriate, remove rectangular backgrounds so the artwork integrates naturally with the garment.
+
+Preserve readable typography and adequate space between elements.
+
+Avoid adding large decorative backgrounds that make the artwork look like a rectangular poster pasted onto clothing, unless that treatment is intentionally part of the design.
+
+## Ceramic mugs
+
+Adapt the design to a printable area on a curved vessel.
+
+Favor balanced, legible graphics.
+
+Avoid excessively small text or intricate details that may disappear at practical printing sizes.
+
+Preserve the design's theme and make it feel appropriate for drinkware.
+
+## Clear glasses
+
+Prioritize readability of printed artwork on a transparent vessel.
+
+Consider that the glass may be viewed against different backgrounds or contain beverages of different colors.
+
+Favor strong graphic shapes and high-contrast designs when appropriate.
+
+Do not automatically assume that white ink or full-color printing is supported.
+
+Account for the selected product's actual decoration method.
+
+If the printing process is unknown, recommend an appropriate visual treatment provisionally and identify the manufacturing detail that needs verification.
+
+## Water bottles and tumblers
+
+Favor compact, vertically balanced compositions or layouts appropriate to the available printable surface.
+
+Account for curved or cylindrical surfaces.
+
+Avoid placing important text where curvature may make it difficult to read.
+
+## Notebooks and journals
+
+Determine whether the design should function as:
+
+- A central cover illustration
+- A typographic cover
+- A full-cover composition
+- An emblem or title treatment
+
+Use an appropriate rectangular composition.
+
+Allow either transparent artwork or full-background artwork depending on the intended cover treatment.
+
+## Posters and art prints
+
+Preserve the original design's artistic intent.
+
+Favor a complete, intentional rectangular composition.
+
+Use full backgrounds when they are part of the artwork.
+
+Maintain appropriate visual hierarchy, borders, and margins.
+
+Do not automatically remove backgrounds from artwork intended as a complete poster composition.
+
+## Desk mats and mousepads
+
+Adapt the design to a wider or appropriately shaped composition.
+
+When necessary, extend the artwork using complementary textures, patterns, or motifs.
+
+Avoid stretching the original design.
+
+Keep important typography and primary illustrations appropriately positioned.
+
+Ensure additional elements reinforce the original concept.
+
+## Laptop sleeves
+
+Adapt the design for a rectangular surface.
+
+Consider edge cropping, available print regions, and visual balance.
+
+Use full-background compositions or isolated artwork according to the design's intended treatment.
+
+## Other products
+
+Apply the same principles using their physical shape, print surface, and intended use.
+
+# 6. Intelligent Background Transparency
+
+The adaptation generator must automatically decide whether the finished artwork should use a genuinely transparent background.
+
+Do not assume that all artwork requires transparency.
+
+Do not assume that square artwork requires an opaque background.
+
+**The decision must depend on the intended product and design treatment.**
+
+## Transparent artwork
+
+For standalone graphics used on apparel, mugs, glassware, drinkware, and similar products, the adaptation prompt should normally request:
+
+- A genuinely transparent background
+- Clean artwork edges
+- No unnecessary solid background rectangle
+- No white canvas
+- No checkerboard pattern
+- No artificial transparency simulation
+- No mockup or physical product in the output
+
+Explicitly instruct ChatGPT to create the artwork as a transparent PNG with a true alpha channel when that is appropriate.
+
+The application does not need to generate or separately package the PNG file.
+
+It only needs to provide the correct instructions to ChatGPT.
+
+## Full-background artwork
+
+For designs intended to fill a complete rectangular or shaped print area, retain or generate a suitable background.
+
+Examples include:
+
+- Posters
+- Full-cover notebooks
+- Full-bleed desk mats
+- Certain mousepads
+- Certain laptop sleeves
+
+A full-background design may still be square or rectangular.
+
+Transparency should be chosen based on the desired print treatment, not simply the shape.
+
+## User control
+
+Add a compact setting:
+
+**Background Treatment**
+
+Options:
+
+1. AI Decides (default)
+2. Transparent
+3. Full Background
+
+The default should handle most cases without intervention.
+
+If the user manually selects an option, respect it when generating the adaptation prompt.
+
+# 7. Intelligent Color Adaptation
+
+The application must intelligently determine whether the original design colors are appropriate for the selected product.
+
+This is particularly important for:
+
+- Clear glasses
+- Dark apparel
+- Light apparel
+- Black mugs
+- White mugs
+- Transparent drinkware
+- Products with unusual surface colors
+
+## Default behavior
+
+Use **AI Decides** for color treatment.
+
+Analyze the original design's palette and the selected product's surface color.
+
+Preserve original colors when they work well.
+
+When necessary, recommend targeted changes to improve legibility or visual harmony.
+
+Examples:
+
+- Dark typography may require a lighter treatment on black apparel.
+- Light graphics may require stronger contrast on white products.
+- Clear glassware may need a high-contrast design that remains visible against different backgrounds.
+- A muted illustration may need selective contrast adjustments when printed on a small surface.
+
+Do not casually recolor the entire artwork.
+
+Do not destroy the design's artistic identity.
+
+Preserve meaningful colors and essential visual relationships.
+
+## Printing process awareness
+
+Different products may have different decoration methods.
+
+These may include:
+
+- Direct-to-garment printing
+- Direct-to-film transfers
+- Sublimation
+- Full-color printing
+- Laser engraving or etching
+- Single-color printing
+
+Do not assume every method supports every color.
+
+For engraved products, the appearance of the final mark may be determined by the product material rather than the supplied artwork color.
+
+If the exact production method is unknown, avoid making unsupported manufacturing claims.
+
+Use an editable product profile to store verified production constraints where available.
+
+Do not invent Fourthwall print dimensions, color capabilities, or manufacturing specifications.
+
+## User control
+
+Add:
+
+**Color Treatment**
+
+Options:
+
+1. AI Decides (default)
+2. Preserve Original Colors
+3. Adapt for Product Color
+
+Allow the user to specify a product color when necessary.
+
+If no product color has been chosen, the AI should recommend a suitable default where possible.
+
+The default process should require no manual color selection.
+
+# 8. Editable Product Profiles
+
+Create a lightweight Product Profiles system.
+
+Each product profile should support:
+
+- Product name
+- Product category
+- Typical artwork orientation
+- Preferred composition
+- Default background treatment
+- Print surface characteristics
+- Supported product colors, when known
+- Printing method, when verified
+- Color and contrast considerations
+- Recommended design adjustments
+- Optional exact print specifications
+- Additional product-specific instructions
+
+Prepopulate these profiles with sensible general design guidance.
+
+Do not invent exact Fourthwall specifications.
+
+The user should be able to edit profiles through Settings.
+
+Keep the default interface simple.
+
+Advanced production settings should not clutter the normal design-to-product workflow.
+
+Store profiles using the application's existing persistence approach.
+
+Ensure that default profile updates do not silently overwrite user-customized profiles.
+
+# 9. Minimal-Click User Experience
+
+This is a critical requirement.
+
+The user does not want another complicated design configuration interface.
+
+The normal workflow must require as few decisions as possible.
+
+## Initial screen
+
+Show:
+
+- Design upload area
+- Optional batch upload
+- Existing uploaded designs, if any
+
+Once an image is uploaded, begin analysis automatically.
+
+No separate "Analyze" button should be required during normal operation.
+
+## Results
+
+Show the recommended product prominently.
+
+Display two alternatives.
+
+Allow direct selection of any other supported product.
+
+Default to the primary recommendation.
+
+Automatically generate the adaptation prompt once the recommendation is ready.
+
+## Prompt output
+
+Display the complete ChatGPT adaptation prompt.
+
+Include a prominent Copy Prompt button.
+
+Keep the original design visible for reference.
+
+Provide easy access to:
+
+- Selected product
+- Background treatment
+- Color treatment
+- Product color when relevant
+
+Hide less frequently used configuration controls under an optional advanced settings area.
+
+Do not require manual confirmation for every setting.
+
+Do not create intermediate wizard screens or repetitive Next buttons.
+
+## Switching products
+
+If the user selects a different product:
+
+- Reuse the existing Gemini artwork analysis.
+- Generate a new product-specific adaptation prompt.
+- Update transparency and color recommendations.
+- Preserve the uploaded artwork.
+- Do not repeat AI analysis unnecessarily.
+
+The user should be able to compare different product adaptations quickly.
+
+# 10. Batch Design Processing
+
+Implement a batch workflow for users working with multiple finished designs.
+
+The user may have 10 to 30 completed designs ready for merchandise production.
+
+Allow multiple images to be uploaded together.
+
+Analyze each design and recommend the best product for it.
+
+## Batch interface
+
+Display a compact list or grid containing:
+
+- Artwork thumbnail
+- Design name or filename
+- Recommended product
+- Brief reason
+- Alternative product selector
+- Analysis status
+- Copy Adaptation Prompt action
+
+Allow the user to override any recommendation without reanalyzing the image.
+
+Provide a clear overview of the product distribution across the batch.
+
+For example:
+
+- 5 apparel products
+- 4 drinkware products
+- 3 notebooks
+- 4 posters
+- 4 desk accessories
+
+These figures are illustrative, not quotas.
+
+Do not force an arbitrary product distribution.
+
+## Batch intelligence
+
+Evaluate each design individually.
+
+When appropriate, consider the overall batch to avoid unnecessary repetition of the same product category.
+
+However, design suitability must remain more important than variety.
+
+If several designs clearly belong on T-shirts, recommend T-shirts.
+
+## Batch API efficiency
+
+- Process uploads with controlled concurrency.
+- Respect the existing Gemini model fallback system.
+- Avoid unnecessary duplicate analysis.
+- Cache successful results.
+- Show progress and failures clearly.
+- Allow failed items to be retried individually.
+- Do not restart a successful batch if one item fails.
+
+Generate individual adaptation prompts locally using the stored analyses and product profiles whenever sufficient information exists.
+
+Allow users to copy an individual prompt or export the batch recommendations and prompts together in a practical text or JSON format.
+
+Do not implement automated Fourthwall product publishing in this version.
+
+# 11. Gemini Integration and API Efficiency
+
+Reuse the existing secure Gemini integration in Prompt Studio.
+
+The app already has:
+
+- A Cloudflare Worker backend
+- Server-side Gemini API access
+- A `GEMINI_API_KEY` environment secret
+- Configurable model priorities
+- Automatic model fallback
+
+**Do not create a second backend or a new deployment architecture.**
+
+Use the existing root-level TypeScript `worker.ts` architecture.
+
+Keep all AI requests server-side.
+
+Introduce a new same-origin API route for artwork analysis, such as:
+
+`POST /api/analyze-design`
+
+Reuse existing API validation, error handling, and model fallback helpers where possible.
+
+Prefer one Gemini analysis per uploaded design.
+
+The analysis should return sufficient structured information to support different product adaptations without repeatedly analyzing the same image.
+
+Create adaptation prompts through local template logic using:
+
+- The saved artwork analysis
+- Selected product profile
+- Product-specific adaptation rules
+- Color and transparency preferences
+- Existing user instructions
+
+Do not invoke Gemini for every product-selector change.
+
+If a user explicitly requests a fresh analysis or deeper creative recommendation, an additional API call may be appropriate, but it must not be part of the normal workflow.
+
+Maintain existing model settings and fallback priorities.
+
+Do not hard-code a single Gemini model.
+
+Keep the API key entirely server-side.
+
+# 12. Prompt Quality and Consistency
+
+The generated ChatGPT prompt should be genuinely specific to the uploaded artwork.
+
+Each prompt should explain:
+
+1. What the original artwork is and which important details must remain intact.
+2. The selected merchandise product.
+3. The desired final composition.
+4. Which layout changes are necessary.
+5. Which elements must not be changed.
+6. Whether the background must be transparent or full-bleed.
+7. What colors should be preserved or adjusted.
+8. How the artwork should be prepared for its intended physical printing surface.
+9. What the final AI-generated image should contain.
+
+Prompts must clearly request the adapted artwork itself, not an ecommerce photograph or product mockup.
+
+Use the attached original design as the visual source of truth.
+
+Do not invent replacement designs.
+
+Avoid vague or generic instructions.
+
+Avoid unnecessarily verbose prompt output.
+
+Give sufficiently detailed art direction to produce a good result without adding irrelevant decorative instructions.
+
+If no adaptation is necessary, the prompt should focus on preserving and preparing the existing artwork rather than forcing a redesign.
+
+## Print readiness
+
+When necessary, specify:
+
+- Appropriate print dimensions or aspect ratio
+- Transparent versus full-background output
+- Clean edges
+- Legible typography
+- Preservation of original text
+- Suitable contrast
+- Avoidance of unwanted shadows, mockups, or textures
+
+Do not claim a generated image is technically print-ready without verifying its actual pixel dimensions, transparency, resolution, and relevant manufacturing requirements.
+
+The app primarily prepares artwork adaptation instructions. Final print-file validation can remain a separate step.
+
+# 13. Saving Work and Avoiding Repetition
+
+Preserve the analysis and product selection for the current design when the user switches between tools.
+
+Avoid losing progress simply because the user opens Product Photography or returns to Design to Product.
+
+Use the existing application's persistence architecture where appropriate.
+
+Allow the user to:
+
+- Return to previously analyzed designs.
+- Change the selected product.
+- Regenerate a prompt locally.
+- Edit product profiles.
+- Copy prompts again.
+
+Do not make unnecessary new API calls when valid saved analysis is available.
+
+If persistent artwork storage is unavailable, implement a safe, lightweight approach that does not unexpectedly fill browser storage with large images.
+
+Clearly distinguish saved analysis metadata from temporary uploaded image data.
+
+# 14. Architecture and Code Organization
+
+Build this feature as an isolated module inside the existing Prompt Studio.
+
+Suggested conceptual organization:
+
+- Design upload and analysis interface
+- Product recommendation interface
+- Product catalog and profiles
+- Product selection logic
+- Artwork adaptation prompt builder
+- Transparency and color rules
+- Batch processing interface
+- Shared Gemini analysis handler
+
+Adapt these to the actual existing project structure.
+
+Do not force a new architecture when suitable components or utilities already exist.
+
+Keep Gemini analysis separate from local prompt assembly.
+
+Use validated structured data for AI responses.
+
+Handle malformed or incomplete model output gracefully.
+
+Preserve existing TypeScript types, build scripts, and deployment configuration.
+
+Do not introduce a separate backend, database, or external service unless genuinely necessary.
+
+# 15. Do Not Implement Unrelated Features
+
+Do not add:
+
+- Direct Fourthwall product creation
+- Automatic product publishing
+- A Fourthwall API integration
+- AI image generation inside the app
+- Automated merchandise mockup creation
+- A separate product photography generator
+- Unnecessary analytics dashboards
+- A new authentication system
+- A separate Cloudflare Worker
+- A new deployment pipeline
+
+The existing Product Photography tool already handles photographic prompts.
+
+This new tool should concentrate on artwork analysis, product selection, and artwork adaptation prompts.
+
+Keep the scope focused.
+
+# 16. Verification and Acceptance Criteria
+
+Verify the following scenarios.
+
+### Product recommendations
+
+1. A coffeehouse-themed badge recommends suitable products such as a mug or apparel based on the actual artwork.
+2. A detailed illustrated map favors products with sufficient printable area.
+3. A short humorous slogan receives appropriate merchandise recommendations.
+4. The user can override the recommended product immediately.
+
+### Artwork adaptation
+
+5. Selecting a T-shirt generates instructions for a proper chest-print design.
+6. Selecting a desk mat generates instructions for a suitable wide composition.
+7. Selecting a mug generates a compact, legible design treatment.
+8. Selecting a poster preserves or creates a suitable full composition.
+9. Switching products updates the prompt without repeating Gemini analysis.
+
+### Transparency
+
+10. Spot-print artwork requests genuine transparent PNG output when appropriate.
+11. Full-bleed artwork retains a suitable background.
+12. Square artwork is not automatically treated as requiring an opaque background.
+13. Transparency instructions explicitly prohibit fake checkerboard backgrounds.
+
+### Color intelligence
+
+14. The system considers artwork contrast on black and white products.
+15. Clear glass recommendations account for print visibility.
+16. Unknown ink or engraving capabilities are not invented.
+17. Original design colors are preserved when adaptation is unnecessary.
+18. User color overrides are respected.
+
+### Workflow
+
+19. Uploading a design automatically starts analysis.
+20. The best product recommendation appears without extra manual steps.
+21. The adaptation prompt is immediately available to copy.
+22. Batch uploads work without repeated manual configuration.
+23. Previous analysis results are reused whenever possible.
+24. The existing Gemini fallback system works with the new tool.
+25. All existing Prompt Studio tools remain functional.
+
+### Technical quality
+
+26. TypeScript compilation succeeds.
+27. The existing Vite build succeeds.
+28. Cloudflare Worker API routing remains functional.
+29. No Gemini API key appears in frontend code.
+30. Existing application settings and saved profiles remain intact.
+
+# 17. Final Implementation Requirements
+
+Implement the complete Design to Product tool directly in the existing application.
+
+Do not provide a nonfunctional visual prototype.
+
+Do not rewrite working parts of the application unnecessarily.
+
+Use the existing interface design and Cloudflare deployment architecture.
+
+When finished, summarize:
+
+- Components and files created
+- Existing files modified
+- New API route added
+- How product recommendations are generated
+- How transparency and color decisions work
+- How product profiles can be edited
+- How batch processing works
+- Any limitations or unverified production assumptions
+
+**The ultimate goal is simple: I should be able to upload a finished design, let the app decide which product suits it best, and receive a useful adaptation prompt with almost no manual configuration.**
+
+Prioritize intelligent decisions, minimal clicks, reliable output, and preservation of the existing working application.

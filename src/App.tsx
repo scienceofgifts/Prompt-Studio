@@ -11,7 +11,9 @@ import { GiftGuideHeroControls } from './components/GiftGuideHeroControls';
 import { PromptResultView, ResultActiveChip } from './components/PromptResultView';
 import { ProductCopyControls } from './components/writing/ProductCopyControls';
 import { SettingsPage } from './components/settings/SettingsPage';
+import { DesignToProductStudio } from './components/designToProduct/DesignToProductStudio';
 import { StyleLibraryModal } from './components/writing/StyleLibraryModal';
+import { useDesignToProductWorkspace } from './designToProduct/useDesignToProductWorkspace';
 import { WritingStyleKey } from './prompts/writing/styles';
 import { TEMPLATES_UPDATED_EVENT } from './utils/templateManager';
 import { analyzeProductImage } from './utils/imageAnalyzer';
@@ -93,6 +95,9 @@ const DEFAULT_PRODUCT_COPY_OPTIONS: ProductCopyOptions = {
 
 export default function App() {
   const [activeTool, setActiveTool] = useState<StudioToolId>('product-photography');
+
+  // Lifted Design to Product state (preserved across Studio tab switches)
+  const designWorkspace = useDesignToProductWorkspace();
 
   // ==========================================
   // Tool 1: Product Photography State (Dual-Model: ChatGPT & Gemini)
@@ -568,6 +573,8 @@ export default function App() {
               <p className="mt-3 text-sm sm:text-base text-[#64748b] leading-relaxed">
                 {activeTool === 'product-photography' &&
                   'Construct production-grade photography prompts optimized for ChatGPT (DALL-E 3) and Google Gemini Multimodal Studio with strict product fidelity.'}
+                {activeTool === 'design-to-product' &&
+                  'Upload finished artwork—single or batch—to identify the best merchandise match and generate ready-to-copy ChatGPT print adaptation prompts.'}
                 {activeTool === 'gift-guide-hero' &&
                   'Create cohesive, editorial multi-product hero image prompts for gift-guide articles—combining your actual product reference images with adaptive arrangement, background, and prop density.'}
                 {activeTool === 'product-copy' &&
@@ -590,7 +597,27 @@ export default function App() {
               </div>
             </div>
 
-            {/* Studio Layout: Left Controls, Right Display */}
+            {activeTool === 'design-to-product' ? (
+              <DesignToProductStudio
+                catalog={designWorkspace.catalog}
+                items={designWorkspace.items}
+                activeItemId={designWorkspace.activeItemId}
+                manualPrompts={designWorkspace.manualPrompts}
+                savedHistory={designWorkspace.savedHistory}
+                onSelectActiveItem={designWorkspace.setActiveItemId}
+                onAddFiles={designWorkspace.addFiles}
+                onRestoreHistoryEntry={designWorkspace.restoreHistoryEntry}
+                onClearHistory={designWorkspace.handleClearHistory}
+                onUpdateItemOptions={designWorkspace.updateItemOptions}
+                onManualPromptChange={designWorkspace.handleManualPromptChange}
+                onResetManualPrompt={designWorkspace.resetManualPrompt}
+                onReanalyzeItem={designWorkspace.reanalyzeItem}
+                onRetryFailed={designWorkspace.retryFailed}
+                onRemoveItem={designWorkspace.removeItem}
+                onClearAllItems={designWorkspace.clearAllItems}
+              />
+            ) : (
+            /* Studio Layout: Left Controls, Right Display */
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* LEFT COLUMN: Controls for Active Tool (6 cols on lg) */}
               <div className="lg:col-span-6 space-y-6">
@@ -715,6 +742,7 @@ export default function App() {
                 />
               </div>
             </div>
+            )}
           </>
         )}
       </main>

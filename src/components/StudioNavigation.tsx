@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Camera,
+  Wand2,
   Layers,
   ShoppingBag,
   Sliders,
@@ -45,6 +46,13 @@ export const StudioNavigation: React.FC<StudioNavigationProps> = ({
       label: 'Product Photography',
       icon: <Camera className="w-4 h-4" />,
       shortDesc: 'Editorial product staging & camera prompts',
+    },
+    {
+      id: 'design-to-product',
+      category: 'image',
+      label: 'Design to Product',
+      icon: <Wand2 className="w-4 h-4" />,
+      shortDesc: 'Match finished artwork to ideal merchandise & adaptation prompts',
     },
     {
       id: 'gift-guide-hero',

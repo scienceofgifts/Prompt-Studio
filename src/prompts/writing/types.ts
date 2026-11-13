@@ -2,6 +2,7 @@ export type StudioCategory = 'image' | 'writing' | 'settings';
 
 export type StudioToolId =
   | 'product-photography'
+  | 'design-to-product'
   | 'gift-guide-hero'
   | 'product-copy'
   | 'settings';

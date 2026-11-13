@@ -4,6 +4,7 @@ import {
   sanitizeCandidateModelList,
   sharedModelCooldowns,
 } from './geminiFallback';
+import { handleAnalyzeDesignRequest } from './designAnalysis';
 
 export const PRODUCT_TYPES = [
   'mug',
@@ -480,6 +481,10 @@ export async function handleApiRequest(
 
   if (pathname === '/api/recognize-product' || pathname === '/api/analyze-product') {
     return handleRecognizeProductRequest(request, config);
+  }
+
+  if (pathname === '/api/analyze-design') {
+    return handleAnalyzeDesignRequest(request, config);
   }
 
   return jsonResponse(
